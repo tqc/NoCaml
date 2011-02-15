@@ -1,0 +1,4 @@
+NoCaml
+======
+
+NoCaml is a library that allows you to create SharePoint solutions without excessively complex configuration files and provides strongly typed access to lists and content types.
