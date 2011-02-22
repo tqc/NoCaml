@@ -38,7 +38,9 @@ namespace NoCaml
                 return new List<WebPartDefinition>();
             }
         }
-
+        /// <summary>
+        /// If set to true, the page will be set as the welcome page of the site on creation.
+        /// </summary>
         public virtual bool IsWelcomePage { get { return false; } }
 
         /// <summary>
