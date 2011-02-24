@@ -105,6 +105,10 @@
     <Compile Include="LoadedAssembly.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SchemaManager.cs" />
+    <Compile Include="UserProfiles\ProfileBase.cs" />
+    <Compile Include="UserProfiles\ProfileDataLoader.cs" />
+    <Compile Include="UserProfiles\ProfilePropertySourceAttribute.cs" />
+    <Compile Include="UserProfiles\ProfilePropertyStorageAttribute.cs" />
     <Compile Include="UserProfiles\UserProfileWrapper.cs" />
   </ItemGroup>
   <ItemGroup>
