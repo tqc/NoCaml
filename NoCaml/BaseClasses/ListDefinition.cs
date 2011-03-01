@@ -19,7 +19,7 @@ namespace NoCaml
     public abstract class ListDefinition
     {
 
-        public int? ID { get; private set; }
+        public int? ID { get; set; }
         public DateTime Created { get; private set; }
 
         protected ListDefinition()
@@ -118,6 +118,10 @@ namespace NoCaml
                     var uri = string.IsNullOrEmpty(s) ? null : new Uri(s);
                     p.SetValue(this, uri, null);
                      
+                }
+                else if (p.PropertyType == typeof(int))
+                {                    
+                    p.SetValue(this, Convert.ToInt32(item[pa.DisplayName]), null);
                 }
                 else
                 {

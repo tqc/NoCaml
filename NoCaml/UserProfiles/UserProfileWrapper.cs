@@ -385,9 +385,7 @@ namespace NoCaml.UserProfiles
 	string strGroup,
 	LEPrivacy privacyLevel
 ) {
-		
 				return new QuickLinkWrapper(miCreate.Invoke(QLM, new object[] { strTitle, strUrl, (int)groupType, strGroup, (int)privacyLevel  }));
-
 	}
 	}
 
