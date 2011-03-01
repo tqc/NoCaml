@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.SharePoint;
 using System.Reflection;
+using Microsoft.Office.Server.Audience;
 
 namespace NoCaml
 {
@@ -525,15 +526,19 @@ namespace NoCaml
 
 
         }
-
         public static IEnumerable<T> Query<T>(SPWeb web, string field, string value) where T : ListDefinition
         {
-            return Query<T>(web, "<Where><Eq><FieldRef Name=\"" + field + "\" /><Value Type=\"Text\">" + value + "</Value></Eq></Where>");
-
+            return Query<T>(web, field, value, false);
         }
-
-
+        public static IEnumerable<T> Query<T>(SPWeb web, string field, string value, bool filterByAudience) where T : ListDefinition
+        {
+            return Query<T>(web, "<Where><Eq><FieldRef Name=\"" + field + "\" /><Value Type=\"Text\">" + value + "</Value></Eq></Where>", filterByAudience);
+        }
         public static IEnumerable<T> Query<T>(SPList list, string q) where T : ListDefinition
+        {
+            return Query<T>(list, q, false);
+        }
+        public static IEnumerable<T> Query<T>(SPList list, string q, bool filterByAudience) where T : ListDefinition
         {
             var spq = new SPQuery()
             {
@@ -545,27 +550,52 @@ namespace NoCaml
             {
                 throw new Exception("Constructor " + typeof(T).Name + "(SPListItem) not found");
             }
-            return splic.OfType<SPListItem>().Select(spli => (T)ctor.Invoke(new object[] { spli })).ToArray();
+
+            filterByAudience &=
+                SPContext.Current != null
+                && SPContext.Current.Web != null
+                && SPContext.Current.Web.CurrentUser != null
+                && list.Fields.ContainsField("Target Audiences");
+            if (filterByAudience)
+            {
+                var audManager = new AudienceManager();
+                var audiences = audManager.Audiences;
+
+                                return splic.OfType<SPListItem>()
+                                    .Where(spli=> string.IsNullOrEmpty((string)spli["Target Audiences"])
+                                    || AudienceManager.IsCurrentUserInAudienceOf((string)spli["Target Audiences"], false)
+                                    )
+                    .Select(spli => (T)ctor.Invoke(new object[] { spli })).ToArray();
+            }
+            else
+            {
+                return splic.OfType<SPListItem>()
+                    .Select(spli => (T)ctor.Invoke(new object[] { spli })).ToArray();
+            }
         }
 
-        public static IEnumerable<T> Query<T>(SPWeb web, string q) where T : ListDefinition
+                public static IEnumerable<T> Query<T>(SPWeb web, string q) where T : ListDefinition
+                {
+                    return Query<T>(web, q, false);
+                }
+        public static IEnumerable<T> Query<T>(SPWeb web, string q, bool filterByAudience) where T : ListDefinition
         {
             var la = GetListAttribute(typeof(T));
 
             // get correct web for list
             if (string.IsNullOrEmpty(la.SiteRelativeWebUrl))
             {
-                return Query<T>(web.Lists[la.DisplayName], q);
+                return Query<T>(web.Lists[la.DisplayName], q, filterByAudience);
             }
             else if (la.SiteRelativeWebUrl == "/")
             {
-                return Query<T>(web.Site.RootWeb.Lists[la.DisplayName], q);
+                return Query<T>(web.Site.RootWeb.Lists[la.DisplayName], q, filterByAudience);
             }
             else
             {
                 using (var web2 = web.Site.OpenWeb(la.SiteRelativeWebUrl))
                 {
-                    return Query<T>(web2.Lists[la.DisplayName], q);
+                    return Query<T>(web2.Lists[la.DisplayName], q, filterByAudience);
                 }
             }
 
