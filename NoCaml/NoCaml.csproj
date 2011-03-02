@@ -97,6 +97,7 @@
     <Compile Include="BaseClasses\WebPartDefinition.cs" />
     <Compile Include="ComponentManager.cs" />
     <Compile Include="ContentTypes\Article_Page.cs" />
+    <Compile Include="ContentTypes\Event.cs" />
     <Compile Include="ContentTypes\Document.cs" />
     <Compile Include="ContentTypes\Item.cs" />
     <Compile Include="ContentTypes\Page.cs" />

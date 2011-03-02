@@ -398,9 +398,9 @@ namespace NoCaml.UserProfiles
 		private static MethodInfo miUserExists;
 		private static MethodInfo miGetUserProfileString;
 		private static MethodInfo miCreateUserProfile;
+		private static MethodInfo miGetEnumerator;
         private static ConstructorInfo ciContext;
 
-		 
 
 		/// <summary>
 		/// Set the first time EnsurePropertiesExists is called in the process so that it
@@ -432,7 +432,8 @@ namespace NoCaml.UserProfiles
 				miGetUserProfileString = TUPM.GetMethod("GetUserProfile", new Type[] { typeof(string) });
 				miUserExists = TUPM.GetMethod("UserExists", new Type[] { typeof(string) });
 				miCreateUserProfile = TUPM.GetMethod("CreateUserProfile", new Type[] { typeof(string) });
-				ciContext = TUPM.GetConstructor(new Type[] { typeof(ServerContext) });
+                miGetEnumerator = TUPM.GetMethod("GetEnumerator", new Type[] { });
+                ciContext = TUPM.GetConstructor(new Type[] { typeof(ServerContext) });
             }
 			UPM = ciContext.Invoke(new object[] { ServerContext.GetContext(site) });
 		}
@@ -457,6 +458,11 @@ namespace NoCaml.UserProfiles
 			return (bool)miUserExists.Invoke(UPM, new object[] { accountName });
 		}
 
+        public IEnumerator GetEnumerator()
+        {
+            return (IEnumerator)miGetEnumerator.Invoke(UPM, new object[] { });
+        }
+
 		public UserProfileWrapper GetUserProfile(string accountName)
 		{
 			return new UserProfileWrapper(miGetUserProfileString.Invoke(UPM, new object[] { accountName }));
@@ -470,7 +476,7 @@ namespace NoCaml.UserProfiles
 
 		public IEnumerable<UserProfileWrapper> GetAllProfiles()
 		{
-			foreach (var p in UPM as IEnumerable)
+			foreach (var p in this)
 			{
 				yield return new UserProfileWrapper(p);
 			}
