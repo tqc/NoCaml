@@ -119,6 +119,16 @@ namespace NoCaml
                     p.SetValue(this, uri, null);
                      
                 }
+                else if (pa.Type == SPFieldType.User && p.PropertyType == typeof(string))
+                {
+                    
+                    var s = (string)item[pa.DisplayName];
+                    if (!string.IsNullOrEmpty(s)) { 
+                    var spfuv = new SPFieldUserValue(item.Web, s);
+                    p.SetValue(this, spfuv.User.LoginName, null);
+                }
+
+                }
                 else if (p.PropertyType == typeof(int))
                 {                    
                     p.SetValue(this, Convert.ToInt32(item[pa.DisplayName]), null);
@@ -180,6 +190,13 @@ namespace NoCaml
                 {
                     var uri = (Uri)p.GetValue(this, null);
                     item[pa.DisplayName] = uri == null ? null : uri.AbsoluteUri;
+                }
+                else if (pa.Type == SPFieldType.User && p.PropertyType == typeof(string))
+                {                    
+                    var un = (string)p.GetValue(this, null);
+                    var u = item.Web.EnsureUser(un);
+
+                    item[pa.DisplayName] = new SPFieldUserValue(item.Web, u.ID, un);
                 }
                 else
                 {
