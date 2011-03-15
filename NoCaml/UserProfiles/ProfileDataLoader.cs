@@ -51,11 +51,21 @@ namespace NoCaml.UserProfiles
             var nsa = pial.Where(a => a.ProfileSource == currentsource).FirstOrDefault();
 
             // if current source is higher priority, do not update
-            if (nsa != null && nsa.Order < sa.Order) return;
+            if (nsa != null && nsa.Order < sa.Order && !sa.RaisePriorityIfChanged) return;
 
             var currentvalue = pi.GetValue(profile, null);
             var newvalue = val(profile, source);
 
+            // if new source is lower priority but can raise priority on change, 
+            // check stored hash, update if different
+
+            if (sa.RaisePriorityIfChanged && newvalue as string != null)
+            {
+                var changed = profile.ImportedPropertyChanged(pi.Name, newvalue as string);
+                if (nsa != null && nsa.Order < sa.Order && !changed) return;
+            }
+
+            
             // do not update if changed
             if (!sa.UseIfEmpty && (newvalue == null || string.IsNullOrEmpty(newvalue.ToString()))) return;
 
