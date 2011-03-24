@@ -86,6 +86,8 @@ namespace NoCaml.UserProfiles
                 var ll = sl.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var l in ll)
                 {
+                    if (!l.Contains(":")) continue;
+                    if (l.Contains("<")) continue;
                     var cl = l.Split(':');
                     var pn = cl[0].Trim();
                     var cs = cl[1].Trim();
@@ -101,6 +103,8 @@ namespace NoCaml.UserProfiles
                 var ll = sl.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var l in ll)
                 {
+                    if (!l.Contains(":")) continue;
+                    if (l.Contains("<")) continue;
                     var cl = l.Split(':');
                     var pn = cl[0].Trim();
                     var cs = cl[1].Trim();
