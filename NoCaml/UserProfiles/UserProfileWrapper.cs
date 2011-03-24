@@ -192,7 +192,8 @@ namespace NoCaml.UserProfiles
 		private static PropertyInfo piCount;
 		private static PropertyInfo piProperty;
 		private static MethodInfo miClear;
-		private static MethodInfo miAdd;
+        private static MethodInfo miAdd;
+        private static MethodInfo miGetEnumerator;
 
 		public UserProfileValueCollectionWrapper(object upvc)
 		{
@@ -204,6 +205,7 @@ namespace NoCaml.UserProfiles
 				piCount = TUPVC.GetProperty("Count");
 				miClear = TUPVC.GetMethod("Clear");
 				miAdd = TUPVC.GetMethod("Add");
+				miGetEnumerator = TUPVC.GetMethod("GetEnumerator");
 			}
 			UPVC = upvc;
 		}
@@ -213,6 +215,8 @@ namespace NoCaml.UserProfiles
 			get { return piValue.GetValue(UPVC, null); }
 			set { piValue.SetValue(UPVC, value, null); }
 		}
+
+       
 
 		public UserProfilePropertyWrapper Property
 		{
@@ -229,6 +233,12 @@ namespace NoCaml.UserProfiles
 		{
 			miAdd.Invoke(UPVC, new object[] { v });
 		}
+
+        public IEnumerator GetEnumerator()
+        {
+            return (IEnumerator) miGetEnumerator.Invoke(UPVC, new object[] {});
+        }
+
 
 		public int Count
 		{
@@ -514,9 +524,8 @@ namespace NoCaml.UserProfiles
 				if (multiple)
 				{
 					p.Separator = (int)LEMultiValueSeparator.Semicolon;
-					p.ChoiceType = (int)LEChoiceTypes.Open;
-
-				}
+                    p.ChoiceType = (int)LEChoiceTypes.Open;
+     			}
 				if (type == "string" || type == "HTML")
 				{
 					p.Length = length;
