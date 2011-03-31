@@ -55,6 +55,24 @@ namespace NoCaml.UserProfiles
         protected UserProfileManagerWrapper UserProfileManager { get; set; }
 
 
+        public static List<string> ChangedAudiences { get; private set; }
+
+        private static void RecordChangedAudience(string audienceName)
+        {
+            if (ChangedAudiences == null) ChangedAudiences = new List<string>();
+            if (!ChangedAudiences.Contains(audienceName)) ChangedAudiences.Add(audienceName);
+        }
+
+        public static void CompileChangedAudiences(SPSite site)
+        {
+            if (ChangedAudiences == null) return;
+            
+            var am = new AudienceManagerWrapper(site);
+            foreach (var an in ChangedAudiences) am.CompileAudience(an, false); 
+            ChangedAudiences = null;
+        }
+
+
 
         // TODO: this needs to be set to false if the elevated context will be disposed before the record is saved.
         public bool ContextProfileValid { get; set; }
@@ -69,6 +87,8 @@ namespace NoCaml.UserProfiles
             EnsureCustomPropertiesExist();
         }
 
+
+ 
 
         protected ProfileBase(SPSite site, UserProfileWrapper profile)
             : this()
@@ -209,6 +229,9 @@ namespace NoCaml.UserProfiles
 
             var pp = Profile[propname];
 
+            string oldval = null;
+            if (pp != null) oldval = pp.Value as string;
+            
             if (val is IEnumerable<string> && pp.Property.IsMultivalued)
             {
                 pp.Clear();
@@ -221,6 +244,20 @@ namespace NoCaml.UserProfiles
             else
             {
                 pp.Value = val;
+            }
+
+            // queue audience update if necessary
+            var aal = pi.GetCustomAttributes(typeof(AudienceAttribute), false)
+            .Cast<AudienceAttribute>();
+            foreach (var aa in aal)
+            {
+                if (string.IsNullOrEmpty(aa.Filter)
+                    || (oldval != null && oldval.Contains(aa.Filter))
+                    || (val is string && val != null && ((string)val).Contains(aa.Filter))
+                    )
+                {
+                    RecordChangedAudience(aa.AudienceName);
+                }
             }
 
         }

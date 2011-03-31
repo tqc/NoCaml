@@ -62,6 +62,10 @@
     <Reference Include="Microsoft.Office.Server, Version=12.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
       <HintPath>..\..\..\Build\Microsoft.Office.Server.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.Office.Server.Search, Version=12.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=AMD64">
+      <HintPath>..\..\..\Build\Microsoft.Office.Server.Search.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Microsoft.SharePoint, Version=14.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\Build\Microsoft.SharePoint.dll</HintPath>
@@ -106,10 +110,14 @@
     <Compile Include="LoadedAssembly.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SchemaManager.cs" />
+    <Compile Include="UserProfiles\AudienceAttribute.cs" />
+    <Compile Include="UserProfiles\AudienceManagerWrapper.cs" />
+    <Compile Include="UserProfiles\AudienceWrapper.cs" />
     <Compile Include="UserProfiles\ProfileBase.cs" />
     <Compile Include="UserProfiles\ProfileDataLoader.cs" />
     <Compile Include="UserProfiles\ProfilePropertySourceAttribute.cs" />
     <Compile Include="UserProfiles\ProfilePropertyStorageAttribute.cs" />
+    <Compile Include="UserProfiles\Rule.cs" />
     <Compile Include="UserProfiles\UserProfileWrapper.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -146,7 +154,7 @@
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties BuildVersion_UpdateFileVersion="True" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_UseGlobalSettings="False" />
+      <UserProperties BuildVersion_UseGlobalSettings="False" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateFileVersion="True" />
     </VisualStudio>
   </ProjectExtensions>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -5,7 +5,7 @@ using System.Text;
 
 namespace NoCaml.UserProfiles
 {
-    [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
     public class ProfilePropertyStorageAttribute : Attribute
     {
 
