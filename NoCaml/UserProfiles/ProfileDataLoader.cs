@@ -141,20 +141,22 @@ namespace NoCaml.UserProfiles
 
         /// <summary>
         /// Update an individual profile with no other data available - generally by calling a web service.        
+        /// Return true if the profile should be recorded as updated sucessfully
         /// </summary>
         /// <param name="p"></param>
-        protected virtual void UpdateProfileRealTime(TProfile p)
+        protected virtual bool UpdateProfileRealTime(TProfile p)
         {
-
+            return false;
         }
 
         /// <summary>
         /// Update an individual profile from data loaded with LoadBulkData
+        /// Return true if the profile should be recorded as updated sucessfully
         /// </summary>
         /// <param name="p"></param>
-        protected virtual void UpdateProfileBatch(TProfile p)
+        protected virtual bool UpdateProfileBatch(TProfile p)
         {
-
+            return false;
         }
 
 
@@ -162,7 +164,7 @@ namespace NoCaml.UserProfiles
         /// For batch updates, load necessary data. Returns true if bulk data is available, false if
         /// individual updates are required.
         /// </summary>
-        public bool LoadBulkData()
+        public virtual bool LoadBulkData()
         {
             return false;
         }
@@ -173,10 +175,13 @@ namespace NoCaml.UserProfiles
             foreach (var pdl in pdls)
             {
                 var k = pdl.SourceName + "|" + profile.LanID;
-                if (!InProcUpdates.ContainsKey(k) || InProcUpdates[k] < DateTime.Now.AddSeconds(-pdl.RealTimeUpdateExpiry))
+                if (pdl.IsValidProfile(profile) && (!InProcUpdates.ContainsKey(k) || InProcUpdates[k] < DateTime.Now.AddSeconds(-pdl.RealTimeUpdateExpiry)))
                 {
-                    pdl.UpdateProfileRealTime(profile);
-                    InProcUpdates[k] = DateTime.Now;
+                    if (pdl.UpdateProfileRealTime(profile))
+                    {
+                        profile.Save();
+                        InProcUpdates[k] = DateTime.Now;
+                    }
                 }
             }
         }
@@ -192,9 +197,10 @@ namespace NoCaml.UserProfiles
                     foreach (var p in profiles)
                     {
                         pdl.UpdateProfileBatch(p);
+                        p.Save();
                     }
                 }
-                else
+                else if (pdl.SpreadUpdateProfileCount > 0)
                 {
                     // bulk data not available, run individual updates on a random selection of profiles
                     
@@ -208,8 +214,11 @@ namespace NoCaml.UserProfiles
 
                     foreach (var p in fp)
                     {
-                        pdl.UpdateProfileRealTime(p);
-                        InProcUpdates[pdl.SourceName + "|" + p.LanID] = DateTime.Now; 
+                        if (pdl.UpdateProfileRealTime(p))
+                        {
+                            p.Save();
+                            InProcUpdates[pdl.SourceName + "|" + p.LanID] = DateTime.Now;
+                        }
                     }
                 }
 
