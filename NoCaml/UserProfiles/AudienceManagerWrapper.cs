@@ -63,6 +63,7 @@ namespace NoCaml.UserProfiles
         /// <typeparam name="T"></typeparam>
         public void EnsureAudiencesExist<T>() where T : ProfileBase
         {
+                var audiences = new Dictionary<string, AudienceWrapper>();
 
             foreach (var pi in typeof(T).GetProperties())
             {
@@ -75,7 +76,6 @@ namespace NoCaml.UserProfiles
                 // can only create rules where property storage is set
                 if (propname == null) continue;
 
-                var audiences = new Dictionary<string, AudienceWrapper>();
 
 
                 var aal = pi.GetCustomAttributes(typeof(AudienceAttribute), false).Cast<AudienceAttribute>();
@@ -99,7 +99,7 @@ namespace NoCaml.UserProfiles
                         {
                             Left = propname,
                             Right = aa.Filter,
-                            Operator = aa.Type == AudienceRuleType.Equal ? "=" : "!="
+                            Operator = aa.Type == AudienceRuleType.Equal ? "=" : "<>"
                         };
 
                         audiences[aa.AudienceName].Rules.Add(r);
@@ -107,9 +107,9 @@ namespace NoCaml.UserProfiles
 
                 }
 
-                EnsureAudiencesExist(audiences.Values, true);
+               
             }
-
+ EnsureAudiencesExist(audiences.Values, true);
 
 
         }
@@ -132,7 +132,7 @@ namespace NoCaml.UserProfiles
 
             foreach (var na in audiences)
             {
-
+                if (na.Description == null) na.Description = na.Name;
                 object ea = al.Where(a => a.AudienceName == na.Name).FirstOrDefault();
                 bool changed = false;
 
@@ -150,6 +150,12 @@ namespace NoCaml.UserProfiles
                 }
                 if (updateRules && na.Rules != null && na.Rules.Count > 0)
                 {
+                    // make sure there is a rules list
+                    if (arp.GetValue(ea, null) == null)
+                    {
+                        arp.SetValue(ea, new ArrayList(), null);
+                    }
+
                     // check for rule update
                     var erl = ((ArrayList)arp.GetValue(ea, null)).OfType<object>().ToList();
 
@@ -184,8 +190,9 @@ namespace NoCaml.UserProfiles
                     if (changed)
                     {
                         var ci = TAudienceRuleComponent.GetConstructor(new Type[] { typeof(string), typeof(string), typeof(string) });
+                        arp.SetValue(ea, new ArrayList(), null);
                         var ar = ((ArrayList)arp.GetValue(ea, null));
-                        ar.Clear();
+
                         foreach (var nr in na.Rules)
                         {
                             if (ar.Count > 0) ar.Add(ci.Invoke(new object[] { null, na.Operator, null }));
