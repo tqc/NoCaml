@@ -136,7 +136,7 @@ namespace NoCaml
         {
             using (var web = web1.Site.OpenWeb())
             {
-
+                web.AllowUnsafeUpdates = true;
                 // first ensure all the site columns exist
                 foreach (var p in t.GetProperties())
                 {

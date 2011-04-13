@@ -159,6 +159,7 @@ namespace NoCaml.UserProfiles
             return false;
         }
 
+        public static Action<string, string, string> Log { get; set; }
 
         /// <summary>
         /// For batch updates, load necessary data. Returns true if bulk data is available, false if
@@ -169,19 +170,40 @@ namespace NoCaml.UserProfiles
             return false;
         }
 
+        private static void LogException(string source, Exception ex)
+        {
+            if (Log != null)
+            {
+                if (ex is TargetInvocationException && ex.InnerException != null)
+                {
+                    Log(source, ex.InnerException.Message, ex.InnerException.StackTrace);
+                }
+                else
+                {
+                    Log(source, ex.Message, ex.StackTrace);
+                }
+            }
 
+        }
         public static void RunRealtimeUpdate(IEnumerable<ProfileDataLoader<TProfile>> pdls, TProfile profile)
         {
             foreach (var pdl in pdls)
             {
-                var k = pdl.SourceName + "|" + profile.LanID;
-                if (pdl.IsValidProfile(profile) && (!InProcUpdates.ContainsKey(k) || InProcUpdates[k] < DateTime.Now.AddSeconds(-pdl.RealTimeUpdateExpiry)))
+                try
                 {
-                    if (pdl.UpdateProfileRealTime(profile))
+                    var k = pdl.SourceName + "|" + profile.LanID;
+                    if (pdl.IsValidProfile(profile) && (!InProcUpdates.ContainsKey(k) || InProcUpdates[k] < DateTime.Now.AddSeconds(-pdl.RealTimeUpdateExpiry)))
                     {
-                        profile.Save();
-                        InProcUpdates[k] = DateTime.Now;
+                        if (pdl.UpdateProfileRealTime(profile))
+                        {
+                            profile.Save();
+                            InProcUpdates[k] = DateTime.Now;
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    LogException(pdl.SourceName, ex);
                 }
             }
         }
@@ -191,40 +213,63 @@ namespace NoCaml.UserProfiles
         {
             foreach (var pdl in pdls)
             {
-                if (pdl.LoadBulkData())
+                try
                 {
-                    // bulk data was loaded, use it to update all
-                    foreach (var p in profiles)
+                    if (pdl.LoadBulkData())
                     {
-                        pdl.UpdateProfileBatch(p);
-                        p.Save();
-                    }
-                }
-                else if (pdl.SpreadUpdateProfileCount > 0)
-                {
-                    // bulk data not available, run individual updates on a random selection of profiles
-                    
-                    // filter list and select random profiles
-                    var rnd = new Random();
-                    var fp = profiles
-                        .Where(p => pdl.IsValidProfile(p))
-                        .Where(p => !InProcUpdates.ContainsKey(pdl.SourceName + "|" + p.LanID) || InProcUpdates[pdl.SourceName + "|" + p.LanID] < DateTime.Now.AddSeconds(-pdl.RealTimeUpdateExpiry))
-                        .OrderBy(p => rnd.Next())
-                        .Take(pdl.SpreadUpdateProfileCount);
-
-                    foreach (var p in fp)
-                    {
-                        if (pdl.UpdateProfileRealTime(p))
+                        // bulk data was loaded, use it to update all
+                        foreach (var p in profiles)
                         {
-                            p.Save();
-                            InProcUpdates[pdl.SourceName + "|" + p.LanID] = DateTime.Now;
+                            try
+                            {
+                                pdl.UpdateProfileBatch(p);
+                                p.Save();
+                            }
+                            catch (Exception ex)
+                            {
+                                LogException(pdl.SourceName + ":" + p.LanID, ex);
+                            }
+
                         }
                     }
+                    else if (pdl.SpreadUpdateProfileCount > 0)
+                    {
+                        // bulk data not available, run individual updates on a random selection of profiles
+
+                        // filter list and select random profiles
+                        var rnd = new Random();
+                        var fp = profiles
+                            .Where(p => pdl.IsValidProfile(p))
+                            .Where(p => !InProcUpdates.ContainsKey(pdl.SourceName + "|" + p.LanID) || InProcUpdates[pdl.SourceName + "|" + p.LanID] < DateTime.Now.AddSeconds(-pdl.RealTimeUpdateExpiry))
+                            .OrderBy(p => rnd.Next())
+                            .Take(pdl.SpreadUpdateProfileCount);
+
+                        foreach (var p in fp)
+                        {
+                            try
+                            {
+                                if (pdl.UpdateProfileRealTime(p))
+                                {
+                                    p.Save();
+                                    InProcUpdates[pdl.SourceName + "|" + p.LanID] = DateTime.Now;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                LogException(pdl.SourceName + ":" + p.LanID, ex);
+                            }
+
+                        }
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    LogException(pdl.SourceName, ex);
                 }
 
             }
         }
-
 
     }
 }
