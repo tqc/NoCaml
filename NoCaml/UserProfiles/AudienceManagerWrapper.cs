@@ -128,6 +128,7 @@ namespace NoCaml.UserProfiles
             var adp = TAudience.GetProperty("AudienceDescription");
             var anp = TAudience.GetProperty("AudienceName");
             var arp = TAudience.GetProperty("AudienceRules");
+            var agop = TAudience.GetProperty("GroupOperation");
 
 
             foreach (var na in audiences)
@@ -143,6 +144,15 @@ namespace NoCaml.UserProfiles
                     changed = true;
                 }
 
+                //ea.GroupOperation = 2 //Microsoft.Office.Server.Audience.AudienceGroupOperation.AUDIENCE_AND_OPERATION
+                var ngop = na.Operator == "OR" ? 1 : 2;
+                if ((int)agop.GetValue(ea, null) != ngop)
+                {
+                    agop.SetValue(ea, ngop, null);
+                    changed = true;
+                }
+
+                
                 if ((string)adp.GetValue(ea, null) != na.Description)
                 {
                     adp.SetValue(ea, na.Description, null);
