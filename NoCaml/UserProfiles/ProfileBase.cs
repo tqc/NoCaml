@@ -241,6 +241,11 @@ namespace NoCaml.UserProfiles
             {
                 // don't try to clear required fields
             }
+            else if (val is DateTime?)
+            {
+                DateTime? nd = (DateTime?)val;
+                pp.Value = nd != null && nd.HasValue ? (object)nd.Value : null;
+            }
             else
             {
                 pp.Value = val;
