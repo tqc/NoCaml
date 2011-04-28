@@ -106,6 +106,7 @@
     <Compile Include="ContentTypes\Item.cs" />
     <Compile Include="ContentTypes\Page.cs" />
     <Compile Include="ContentTypes\Welcome_Page.cs" />
+    <Compile Include="Extensions.cs" />
     <Compile Include="LayoutManager.cs" />
     <Compile Include="LoadedAssembly.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -154,7 +155,7 @@
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties BuildVersion_UseGlobalSettings="False" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateFileVersion="True" />
+      <UserProperties BuildVersion_UpdateFileVersion="True" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_UseGlobalSettings="False" />
     </VisualStudio>
   </ProjectExtensions>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -218,19 +218,19 @@ namespace NoCaml.UserProfiles
                     if (pdl.LoadBulkData())
                     {
                         // bulk data was loaded, use it to update all
-                        foreach (var p in profiles)
-                        {
-                            try
-                            {
-                                pdl.UpdateProfileBatch(p);
-                                p.Save();
-                            }
-                            catch (Exception ex)
-                            {
-                                LogException(pdl.SourceName + ":" + p.LanID, ex);
-                            }
+                        profiles.EachParallel(p =>
+                       {
+                           try
+                           {
+                               pdl.UpdateProfileBatch(p);
+                               p.Save();
+                           }
+                           catch (Exception ex)
+                           {
+                               LogException(pdl.SourceName + ":" + p.LanID, ex);
+                           }
 
-                        }
+                       });
                     }
                     else if (pdl.SpreadUpdateProfileCount > 0)
                     {
@@ -244,7 +244,8 @@ namespace NoCaml.UserProfiles
                             .OrderBy(p => rnd.Next())
                             .Take(pdl.SpreadUpdateProfileCount);
 
-                        foreach (var p in fp)
+                        
+                        fp.EachParallel(p =>
                         {
                             try
                             {
@@ -259,7 +260,7 @@ namespace NoCaml.UserProfiles
                                 LogException(pdl.SourceName + ":" + p.LanID, ex);
                             }
 
-                        }
+                        });
                     }
 
                 }
