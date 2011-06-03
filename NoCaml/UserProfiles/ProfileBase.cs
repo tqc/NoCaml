@@ -247,7 +247,10 @@ namespace NoCaml.UserProfiles
                             loadedvalue = profile[psa.PropertyName].Value;
                         }
                     }
-                    p.SetValue(this, loadedvalue, null);
+                    if (p.CanWrite)
+                    {
+                        p.SetValue(this, loadedvalue, null);
+                    }
                 }
             }
 
