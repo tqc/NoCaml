@@ -199,6 +199,8 @@ namespace NoCaml.UserProfiles
 
             RegisterLoadSaveFunctions();
 
+            LanID = (string)profile["AccountName"].Value;
+
             // load properties that have a known source
             var pl = this.GetType().GetProperties();
             foreach (var p in pl)
