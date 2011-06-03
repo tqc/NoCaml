@@ -103,8 +103,8 @@ namespace NoCaml.UserProfiles
             EnsureCustomPropertiesExist();
         }
 
-        protected static Dictionary<string, Func<UserProfileValueCollectionWrapper, object>> LoadFunctions { get; set; }
-        protected static Dictionary<string, Func<object, object>> SaveFunctions { get; set; }
+        private static Dictionary<string, Func<UserProfileValueCollectionWrapper, object>> LoadFunctions { get; set; }
+        private static Dictionary<string, Func<object, object>> SaveFunctions { get; set; }
 
         protected abstract void RegisterCustomLoadSaveFunctions();
 
@@ -126,10 +126,12 @@ namespace NoCaml.UserProfiles
 
         }
 
-        protected void RegisterLoadSaveFunctions()
+        private void RegisterLoadSaveFunctions()
         {
             if (LoadFunctions != null && SaveFunctions != null) { return; }
-        
+            LoadFunctions = new Dictionary<string, Func<UserProfileValueCollectionWrapper, object>>();
+            SaveFunctions = new Dictionary<string, Func<object, object>>();
+
             RegisterCustomPropertyLoader<ProfileBase, Dictionary<string, string>>(p => p.SourceLog,
                     ppvc =>
                     {
