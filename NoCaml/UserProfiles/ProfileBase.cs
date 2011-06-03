@@ -114,7 +114,7 @@ namespace NoCaml.UserProfiles
             Func<T, object> savefunc
             )
         {
-                        // get property name from expression
+             // get property name from expression
             var n = propfunc.Body as MemberExpression;
             if (propfunc.Body.NodeType == ExpressionType.Convert) n = ((UnaryExpression)propfunc.Body).Operand as MemberExpression;
             var pi = n.Member as PropertyInfo;
@@ -229,6 +229,10 @@ namespace NoCaml.UserProfiles
                         else if (p.PropertyType == typeof(bool))
                         {
                             loadedvalue = Convert.ToBoolean(profile[psa.PropertyName].Value);
+                        }
+                        else if (p.PropertyType == typeof(DateTime?))
+                        {
+                            loadedvalue = profile[psa.PropertyName].Count == 0 ? (DateTime?)null : Convert.ToDateTime(profile[psa.PropertyName].Value);
                         }
                         else if (p.PropertyType == typeof(DateTime))
                         {
@@ -410,8 +414,7 @@ namespace NoCaml.UserProfiles
                     var psa = (ProfilePropertyStorageAttribute)p.GetCustomAttributes(typeof(ProfilePropertyStorageAttribute), true).FirstOrDefault();
                     if (psa != null)
                     {
-                        object loadedvalue = null;
-                        // property needs loading - check for a custom load function
+                        // property needs saving - check for a custom save function
                         if (SaveFunctions.ContainsKey(p.Name))
                         {
                             SetIfChanged(p, SaveFunctions[p.Name]);
