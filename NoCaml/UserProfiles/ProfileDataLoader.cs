@@ -217,8 +217,10 @@ namespace NoCaml.UserProfiles
                 {
                     if (pdl.LoadBulkData())
                     {
-                        // bulk data was loaded, use it to update all
-                        profiles.EachParallel(p =>
+                        // bulk data was loaded, use it to update all valid profiles
+                        profiles
+                            .Where(p => pdl.IsValidProfile(p))
+                            .EachParallel(p =>
                        {
                            try
                            {
