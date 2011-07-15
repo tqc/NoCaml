@@ -126,6 +126,11 @@ namespace NoCaml.UserProfiles
         /// </summary>
         private static Dictionary<string, DateTime> InProcUpdates = new Dictionary<string, DateTime>();
 
+        public static void ResetUpdateFlags() {
+            InProcUpdates = new Dictionary<string, DateTime>();
+        }
+
+
 
         /// <summary>
         /// For sources where validity is dependent on other properties, allow filtering of the profile list 
