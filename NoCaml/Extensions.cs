@@ -38,29 +38,33 @@ namespace NoCaml
                     // in WaitHandle
                     var chunk = list.Skip(offset * MaxHandles).Take(MaxHandles);
 
-                    // Initialize the reset events to keep track of completed threads
-                    var resetEvents = new ManualResetEvent[chunk.Count()];
-
-                    // spawn a thread for each item in the chunk
-                    int i = 0;
-                    foreach (var item in chunk)
+                    if (chunk.Count() > 0)
                     {
-                        resetEvents[i] = new ManualResetEvent(false);
-                        ThreadPool.QueueUserWorkItem(new WaitCallback((object data) =>
+
+                        // Initialize the reset events to keep track of completed threads
+                        var resetEvents = new ManualResetEvent[chunk.Count()];
+
+                        // spawn a thread for each item in the chunk
+                        int i = 0;
+                        foreach (var item in chunk)
                         {
-                            int methodIndex = (int)((object[])data)[0];
+                            resetEvents[i] = new ManualResetEvent(false);
+                            ThreadPool.QueueUserWorkItem(new WaitCallback((object data) =>
+                            {
+                                int methodIndex = (int)((object[])data)[0];
 
-                            // Execute the method and pass in the enumerated item
-                            action((T)((object[])data)[1]);
+                                // Execute the method and pass in the enumerated item
+                                action((T)((object[])data)[1]);
 
-                            // Tell the calling thread that we're done
-                            resetEvents[methodIndex].Set();
-                        }), new object[] { i, item });
-                        i++;
+                                // Tell the calling thread that we're done
+                                resetEvents[methodIndex].Set();
+                            }), new object[] { i, item });
+                            i++;
+                        }
+
+                        // Wait for all threads to execute
+                        WaitHandle.WaitAll(resetEvents);
                     }
-
-                    // Wait for all threads to execute
-                    WaitHandle.WaitAll(resetEvents);
                 }
             }
         }
