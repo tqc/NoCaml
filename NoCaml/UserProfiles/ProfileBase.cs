@@ -72,6 +72,34 @@ namespace NoCaml.UserProfiles
             ChangedAudiences = null;
         }
 
+        public List<AudienceWrapper> GetAudiences()
+        {
+            var am = new AudienceManagerWrapper(this.Site);
+            var ids = am.GetUserAudienceIDs(LanID, false, Site.RootWeb);
+            var result = new List<AudienceWrapper>();
+
+            foreach (Guid g in ids)
+            {
+                try {
+                    var a = am.GetAudience(g);
+                    result.Add(a);
+                }
+                catch
+                {
+                    // ignore any invalid ids returned
+                }
+            }
+
+            return result;
+            
+        }
+
+        public List<string> GetAudienceNames()
+        {
+            var am = new AudienceManagerWrapper(this.Site);
+            var ids = am.GetUserAudienceNames(LanID, Site.RootWeb);
+            return ids;
+        }
 
 
         // TODO: this needs to be set to false if the elevated context will be disposed before the record is saved.

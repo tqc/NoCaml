@@ -17,6 +17,12 @@ namespace NoCaml.UserProfiles
         static Type TAudience { get; set; }
         static Type TAudienceJob { get; set; }
         static Type TAudienceRuleComponent { get; set; }
+        private static MethodInfo miGetUserAudienceIDs_Bool;
+        private static MethodInfo miGetUserAudienceIDs_StringBoolSPWeb;
+        private static MethodInfo miGetAudience_Guid;
+        private static MethodInfo miGetAudience_String;
+
+
 
         public AudienceManagerWrapper(SPSite site)
         {
@@ -43,6 +49,12 @@ namespace NoCaml.UserProfiles
                 TAudienceJob = TAM.Assembly.GetType("Microsoft.Office.Server.Audience.AudienceJob");
                 TAudienceRuleComponent = TAM.Assembly.GetType("Microsoft.Office.Server.Audience.AudienceRuleComponent");
 
+                miGetUserAudienceIDs_Bool = TAM.GetMethod("GetUserAudienceIDs", new Type[] { typeof(bool) });
+                miGetUserAudienceIDs_StringBoolSPWeb = TAM.GetMethod("GetUserAudienceIDs", new Type[] { typeof(string), typeof(bool), typeof(SPWeb) });
+                miGetAudience_String = TAM.GetMethod("GetAudience", new Type[] { typeof(string) });
+                miGetAudience_Guid = TAM.GetMethod("GetAudience", new Type[] { typeof(Guid) });
+
+
             }
 
             AM = TAM.GetConstructor(new Type[] { typeof(ServerContext) }).Invoke(new object[] { ServerContext.GetContext(site) });
@@ -56,6 +68,59 @@ namespace NoCaml.UserProfiles
                 return (IEnumerable)TAM.GetProperty("Audiences").GetValue(AM, null);
             }
         }
+
+        public IEnumerable<AudienceWrapper> WrappedAudiences
+        {
+            get
+            {
+                foreach (object a in Audiences)
+                {
+                    yield return new AudienceWrapper(a);
+                }
+            }
+        }
+
+        public AudienceWrapper GetAudience(string audienceName)
+        {
+            return new AudienceWrapper(miGetAudience_String.Invoke(AM, new object[] { audienceName }));
+ 
+
+        }
+
+        public AudienceWrapper GetAudience(Guid audienceId)
+        {
+            return new AudienceWrapper(miGetAudience_Guid.Invoke(AM, new object[] { audienceId }));
+        }
+
+        public List<Guid> GetUserAudienceIDs(string accountName, bool needAudienceName, SPWeb web )
+        {
+            var al = (ArrayList)miGetUserAudienceIDs_StringBoolSPWeb.Invoke(AM, new object[] { accountName, needAudienceName, web });
+            return al.OfType<object>()
+                .Select(o => (Guid)o.GetType().GetProperty("GlobalAudienceID").GetValue(o, null))
+                .Where(g => g != Guid.Empty)
+                .ToList();
+        }
+
+        public List<string> GetUserAudienceNames(string accountName, SPWeb web)
+        {
+            var al = (ArrayList)miGetUserAudienceIDs_StringBoolSPWeb.Invoke(AM, new object[] { accountName, true, web });
+            return al.OfType<object>()
+                .Select(o => (string)o.GetType().GetProperty("AudienceName").GetValue(o, null))
+                .ToList();
+        }
+
+
+        public List<Guid> GetUserAudienceIDs(bool needAudienceName)
+        {
+            var al = (ArrayList)miGetUserAudienceIDs_Bool.Invoke(AM, new object[] { needAudienceName });
+            return al.OfType<object>()
+                .Select(o => (Guid)o.GetType().GetProperty("GlobalAudienceID").GetValue(o, null))
+                .Where(g => g != Guid.Empty)
+                .ToList();
+        }
+
+
+
 
         /// <summary>
         /// Create audiences specified as attributes
@@ -262,6 +327,7 @@ namespace NoCaml.UserProfiles
         {
             TAudienceJob.GetMethod("RunAudienceJob").Invoke(null, new object[] { new string[] { Is2010() ? GetAudienceJobAppId2010() : GetAudienceJobAppId2007(), "1", fullcompile ? "1" : "0", name } });
         }
+
 
 
 
