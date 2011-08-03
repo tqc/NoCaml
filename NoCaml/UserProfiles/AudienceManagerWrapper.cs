@@ -82,17 +82,29 @@ namespace NoCaml.UserProfiles
 
         public AudienceWrapper GetAudience(string audienceName)
         {
-            return new AudienceWrapper(miGetAudience_String.Invoke(AM, new object[] { audienceName }));
- 
-
+            try
+            {
+                return new AudienceWrapper(miGetAudience_String.Invoke(AM, new object[] { audienceName }));
+            }
+            catch (TargetInvocationException tie)
+            {
+                throw tie.InnerException;
+            }
         }
 
         public AudienceWrapper GetAudience(Guid audienceId)
         {
-            return new AudienceWrapper(miGetAudience_Guid.Invoke(AM, new object[] { audienceId }));
+            try
+            {
+                return new AudienceWrapper(miGetAudience_Guid.Invoke(AM, new object[] { audienceId }));
+            }
+            catch (TargetInvocationException tie)
+            {
+                throw tie.InnerException;
+            }
         }
 
-        public List<Guid> GetUserAudienceIDs(string accountName, bool needAudienceName, SPWeb web )
+        public List<Guid> GetUserAudienceIDs(string accountName, bool needAudienceName, SPWeb web)
         {
             var al = (ArrayList)miGetUserAudienceIDs_StringBoolSPWeb.Invoke(AM, new object[] { accountName, needAudienceName, web });
             return al.OfType<object>()
@@ -128,7 +140,7 @@ namespace NoCaml.UserProfiles
         /// <typeparam name="T"></typeparam>
         public void EnsureAudiencesExist<T>() where T : ProfileBase
         {
-                var audiences = new Dictionary<string, AudienceWrapper>();
+            var audiences = new Dictionary<string, AudienceWrapper>();
 
             foreach (var pi in typeof(T).GetProperties())
             {
@@ -172,9 +184,9 @@ namespace NoCaml.UserProfiles
 
                 }
 
-               
+
             }
- EnsureAudiencesExist(audiences.Values, true);
+            EnsureAudiencesExist(audiences.Values, true);
 
 
         }
@@ -217,7 +229,7 @@ namespace NoCaml.UserProfiles
                     changed = true;
                 }
 
-                
+
                 if ((string)adp.GetValue(ea, null) != na.Description)
                 {
                     adp.SetValue(ea, na.Description, null);
