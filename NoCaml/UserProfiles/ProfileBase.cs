@@ -107,28 +107,35 @@ namespace NoCaml.UserProfiles
 
         public abstract void EnsureCustomPropertiesExist();
 
-
-
+        private static object syncRoot = new object();
+        public static bool propertiesEnsured = false;
 
         public void EnsurePropertiesExist()
         {
-            //UserProfileManager.EnsurePropertyExists("SourceLog", "SourceLog", "HTML", 2000, true, false);
-            //UserProfileManager.EnsurePropertyExists("HashLog", "HashLog", "HTML", 2000, true, false);
+            if (propertiesEnsured) return;
 
-            // find all properties with ProfilePropertyStorage attributes
-
-            var pl = this.GetType().GetProperties();
-            foreach (var p in pl)
+            lock (syncRoot)
             {
-                var psa = (ProfilePropertyStorageAttribute)p.GetCustomAttributes(typeof(ProfilePropertyStorageAttribute), true).FirstOrDefault();
-                if (psa != null)
+                if (propertiesEnsured) return;
+                //UserProfileManager.EnsurePropertyExists("SourceLog", "SourceLog", "HTML", 2000, true, false);
+                //UserProfileManager.EnsurePropertyExists("HashLog", "HashLog", "HTML", 2000, true, false);
+
+                // find all properties with ProfilePropertyStorage attributes
+
+                var pl = this.GetType().GetProperties();
+                foreach (var p in pl)
                 {
-                    UserProfileManager.EnsurePropertyExists(psa.PropertyName, psa.PropertyName, psa.PropertyType, psa.Length, psa.Searchable, psa.Multiple);
+                    var psa = (ProfilePropertyStorageAttribute)p.GetCustomAttributes(typeof(ProfilePropertyStorageAttribute), true).FirstOrDefault();
+                    if (psa != null)
+                    {
+                        UserProfileManager.EnsurePropertyExists(psa.PropertyName, psa.PropertyName, psa.PropertyType, psa.Length, psa.Searchable, psa.Multiple);
+                    }
                 }
+
+                EnsureCustomPropertiesExist();
+
+                propertiesEnsured = true;
             }
-
-
-            EnsureCustomPropertiesExist();
         }
 
         private static Dictionary<string, Func<UserProfileValueCollectionWrapper, object>> LoadFunctions { get; set; }
@@ -466,6 +473,7 @@ namespace NoCaml.UserProfiles
                 SaveCustomProperties();
                 
                 Profile.Commit();
+                ChangedProperties = new List<string>();
             }
             catch (Exception ex)
             {
