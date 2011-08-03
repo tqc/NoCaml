@@ -61,6 +61,11 @@ namespace NoCaml
             ID = item.ID;
             Created = (DateTime)item["Created"];
 
+            if (this is IAudienced && item.Fields.ContainsField("Target Audiences"))
+            {
+                ((IAudienced)this).TargetAudiences = (string)item["Target Audiences"];
+            }
+
             foreach (var p in this.GetType().GetProperties())
             {
                 var pa = SchemaManager.GetFieldAttribute(p, true, false);

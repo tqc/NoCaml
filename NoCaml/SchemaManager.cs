@@ -538,6 +538,32 @@ namespace NoCaml
         {
             return Query<T>(list, q, false);
         }
+
+        public static IEnumerable<T> ApplyAudienceFilter<T>(this IEnumerable<T> allitems) where T : IAudienced
+        {
+            if (SPContext.Current == null
+                || SPContext.Current.Web == null
+                || SPContext.Current.Web.CurrentUser == null)
+            {
+                foreach (var t in allitems)
+                {
+                    yield return t;
+                }
+            }
+
+            var audManager = new AudienceManager();
+
+            foreach (var t in allitems)
+            {
+                if (string.IsNullOrEmpty(t.TargetAudiences)
+                    || AudienceManager.IsCurrentUserInAudienceOf(t.TargetAudiences, true)
+                    )
+                {
+                    yield return t;
+                }
+            }
+        }
+
         public static IEnumerable<T> Query<T>(SPList list, string q, bool filterByAudience) where T : ListDefinition
         {
             var spq = new SPQuery()
@@ -558,14 +584,11 @@ namespace NoCaml
                 && list.Fields.ContainsField("Target Audiences");
             if (filterByAudience)
             {
-                var audManager = new AudienceManager();
-                var audiences = audManager.Audiences;
-
-                                return splic.OfType<SPListItem>()
-                                    .Where(spli=> string.IsNullOrEmpty((string)spli["Target Audiences"])
-                                    || AudienceManager.IsCurrentUserInAudienceOf((string)spli["Target Audiences"], false)
-                                    )
-                    .Select(spli => (T)ctor.Invoke(new object[] { spli })).ToArray();
+                return splic.OfType<SPListItem>()
+                    .Where(spli => string.IsNullOrEmpty((string)spli["Target Audiences"])
+                    || AudienceManager.IsCurrentUserInAudienceOf((string)spli["Target Audiences"], false)
+                    )
+    .Select(spli => (T)ctor.Invoke(new object[] { spli })).ToArray();
             }
             else
             {
@@ -574,10 +597,10 @@ namespace NoCaml
             }
         }
 
-                public static IEnumerable<T> Query<T>(SPWeb web, string q) where T : ListDefinition
-                {
-                    return Query<T>(web, q, false);
-                }
+        public static IEnumerable<T> Query<T>(SPWeb web, string q) where T : ListDefinition
+        {
+            return Query<T>(web, q, false);
+        }
         public static IEnumerable<T> Query<T>(SPWeb web, string q, bool filterByAudience) where T : ListDefinition
         {
             var la = GetListAttribute(typeof(T));
