@@ -117,6 +117,11 @@ namespace NoCaml.UserProfiles
             lock (syncRoot)
             {
                 if (propertiesEnsured) return;
+
+                if (SPContext.Current != null)
+                {
+                    SPContext.Current.Web.AllowUnsafeUpdates = true;
+                }
                 //UserProfileManager.EnsurePropertyExists("SourceLog", "SourceLog", "HTML", 2000, true, false);
                 //UserProfileManager.EnsurePropertyExists("HashLog", "HashLog", "HTML", 2000, true, false);
 
