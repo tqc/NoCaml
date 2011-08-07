@@ -126,7 +126,8 @@ namespace NoCaml.UserProfiles
         /// </summary>
         private static Dictionary<string, DateTime> InProcUpdates = new Dictionary<string, DateTime>();
 
-        public static void ResetUpdateFlags() {
+        public static void ResetUpdateFlags()
+        {
             InProcUpdates = new Dictionary<string, DateTime>();
         }
 
@@ -175,6 +176,65 @@ namespace NoCaml.UserProfiles
             return false;
         }
 
+        private string[] ProfilesToUpdate { get; set; }
+
+        private string[] SelectProfilesToUpdate(IEnumerable<TProfile> profiles)
+        {
+            var rnd = new Random();
+            if (SpreadUpdateProfileCount == 0) return null;
+            if (SpreadUpdateProfileCount == int.MaxValue) return null;
+
+            var result = profiles
+    .Where(p => IsValidProfile(p))
+    .Where(p => !InProcUpdates.ContainsKey(SourceName + "|" + p.LanID) || InProcUpdates[SourceName + "|" + p.LanID] < DateTime.Now.AddSeconds(-RealTimeUpdateExpiry))
+    .OrderBy(p => rnd.Next())
+    .Take(SpreadUpdateProfileCount)
+    .Select(p => p.LanID.ToLower())
+    .ToArray();
+
+            foreach (var p in result)
+            {
+                // updating here to avoid potential issues updating on 64 threads simultaneously
+                InProcUpdates[SourceName + "|" + p] = DateTime.Now;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// return true if this profile is in the import file
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        protected virtual bool BulkDataContains(TProfile p)
+        {
+            return false;
+        }
+
+        /// <summary>
+        /// return true if this profile may have been in the import previously so should be updated
+        /// even if it is no longer present. This may overlap with BulkDataContains - it is used only
+        /// for choosing records to be updated.
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        protected virtual bool BulkDataUsedToContain(TProfile p)
+        {
+            return false;
+        }
+
+
+        private bool ShouldUpdateInBatch(TProfile p)
+        {
+            if (!IsValidProfile(p)) return false;
+            if (SpreadUpdateProfileCount == int.MaxValue) return true;
+            if (BulkDataAvailable) return BulkDataContains(p) || BulkDataUsedToContain(p);
+            if (ProfilesToUpdate != null && ProfilesToUpdate.Length > 0) return ProfilesToUpdate.Contains(p.LanID.ToLower());
+
+            return false;
+        }
+
+
         private static void LogException(string source, Exception ex)
         {
             if (Log != null)
@@ -213,70 +273,74 @@ namespace NoCaml.UserProfiles
             }
         }
 
+        private bool LoaderInitialized = false;
+        private bool BulkDataAvailable = false;
+
 
         public static void RunBatchUpdate(IEnumerable<ProfileDataLoader<TProfile>> pdls, IEnumerable<TProfile> profiles)
         {
+            // initialize each loader
+
             foreach (var pdl in pdls)
             {
                 try
                 {
-                    if (pdl.LoadBulkData())
-                    {
-                        // bulk data was loaded, use it to update all valid profiles
-                        profiles
-                            .Where(p => pdl.IsValidProfile(p))
-                            .EachParallel(p =>
-                       {
-                           try
-                           {
-                               pdl.UpdateProfileBatch(p);
-                               p.Save();
-                           }
-                           catch (Exception ex)
-                           {
-                               LogException(pdl.SourceName + ":" + p.LanID, ex);
-                           }
-
-                       });
-                    }
-                    else if (pdl.SpreadUpdateProfileCount > 0)
-                    {
-                        // bulk data not available, run individual updates on a random selection of profiles
-
-                        // filter list and select random profiles
-                        var rnd = new Random();
-                        var fp = profiles
-                            .Where(p => pdl.IsValidProfile(p))
-                            .Where(p => !InProcUpdates.ContainsKey(pdl.SourceName + "|" + p.LanID) || InProcUpdates[pdl.SourceName + "|" + p.LanID] < DateTime.Now.AddSeconds(-pdl.RealTimeUpdateExpiry))
-                            .OrderBy(p => rnd.Next())
-                            .Take(pdl.SpreadUpdateProfileCount);
-
-                        
-                        fp.EachParallel(p =>
-                        {
-                            try
-                            {
-                                if (pdl.UpdateProfileRealTime(p))
-                                {
-                                    p.Save();
-                                    InProcUpdates[pdl.SourceName + "|" + p.LanID] = DateTime.Now;
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                LogException(pdl.SourceName + ":" + p.LanID, ex);
-                            }
-
-                        });
-                    }
-
+                    pdl.LoaderInitialized = false;
+                    pdl.BulkDataAvailable = pdl.LoadBulkData();
+                    pdl.ProfilesToUpdate = pdl.SelectProfilesToUpdate(profiles);
+                    pdl.LoaderInitialized = true;
                 }
                 catch (Exception ex)
                 {
+                    // log init failure
                     LogException(pdl.SourceName, ex);
                 }
-
             }
+
+            var activeLoaders = pdls.Where(pdl => pdl.LoaderInitialized && (pdl.BulkDataAvailable || pdl.SpreadUpdateProfileCount > 0)).ToList();
+
+            profiles.EachParallel(p =>
+            {
+                bool updated = false;
+                foreach (var pdl in activeLoaders)
+                {
+
+                    if (pdl.ShouldUpdateInBatch(p))
+                    {
+                        try
+                        {
+                            if (pdl.BulkDataAvailable)
+                            {
+                                pdl.UpdateProfileBatch(p);
+                            }
+                            else
+                            {
+                                pdl.UpdateProfileRealTime(p);
+                            }
+                            updated = true;
+                        }
+
+                        catch (Exception ex)
+                        {
+                            LogException(pdl.SourceName + ":" + p.LanID, ex);
+                        }
+                    }
+
+                }
+                if (updated)
+                {
+                    try
+                    {
+                        p.Save();
+                    }
+                    catch (Exception ex)
+                    {
+                        LogException("Saving:" + p.LanID, ex);
+                    }
+                }
+
+            });
+
         }
 
     }
