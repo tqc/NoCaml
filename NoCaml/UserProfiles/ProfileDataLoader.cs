@@ -23,9 +23,104 @@ namespace NoCaml.UserProfiles
             Mappings = new Dictionary<Expression<Func<TProfile, object>>, Func<TProfile, TSource, object>>();
         }
 
+        private class LoadablePropertyDetails
+        {
+            public PropertyInfo PropertyInfo { get; set; }
+            public List<string> BetterSources { get; set; }
+            public bool RaisePriorityOnChange { get; set; }
+            public bool UseIfNull { get; set; }
+            public bool UpdateForNullSource { get; set; }
+            public Func<TProfile, TSource, object> ValueFunction { get; set; }
+            public bool IsValid { get; set; }
+
+            public LoadablePropertyDetails(Expression<Func<TProfile, object>> expr, Func<TProfile, TSource, object> val, string sourceName, bool updateForNullSource)
+            {
+                IsValid = true;
+                var n = expr.Body as MemberExpression;
+                if (expr.Body.NodeType == ExpressionType.Convert) n = ((UnaryExpression)expr.Body).Operand as MemberExpression;
+                PropertyInfo = n.Member as PropertyInfo;
+                var pial = PropertyInfo.GetCustomAttributes(true).Where(a => a is ProfilePropertySourceAttribute).Cast<ProfilePropertySourceAttribute>();
+                var sa = pial.Where(a => a.ProfileSource == sourceName).FirstOrDefault();
+                if (sa == null)
+                {
+                    IsValid = false;
+                }
+                else
+                {
+                    BetterSources = pial.Where(a => a.Order < sa.Order).Select(a => sa.ProfileSource).ToList();
+                    RaisePriorityOnChange = sa.RaisePriorityIfChanged;
+                    UseIfNull = sa.UseIfEmpty;
+                    UpdateForNullSource = updateForNullSource;
+                    ValueFunction = val;
+                }
+            }
+        }
+
+        private object syncRoot = new object();
+        private Dictionary<string, LoadablePropertyDetails> PropertyCache { get; set; }
+
+        private void UpdateCachedDetails()
+        {
+            PropertyCache = new Dictionary<string, LoadablePropertyDetails>();
+            foreach (var kv in Mappings)
+            {
+                var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, false);
+                if (lpd.IsValid) PropertyCache.Add(lpd.PropertyInfo.Name, lpd);
+            }
+
+            foreach (var kv in NullableMappings)
+            {
+                var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, true);
+                if (lpd.IsValid) PropertyCache.Add(lpd.PropertyInfo.Name, lpd);
+            }
+
+        }
 
 
-        public void UpdateProperty(TProfile profile, TSource source, Expression<Func<TProfile, object>> expr, Func<TProfile, TSource, object> val)
+        private void UpdateProperty(TProfile profile, TSource source, LoadablePropertyDetails lpd)
+        {
+            // if this loader is not a valid source, return
+            if (!lpd.IsValid) return;
+
+            var currentsource = profile.GetCurrentSource(lpd.PropertyInfo.Name);
+
+            // if current source is higher priority, do not update
+            if (!lpd.RaisePriorityOnChange
+                && !string.IsNullOrEmpty(currentsource)
+                && lpd.BetterSources.Contains(currentsource)) return;
+
+            var currentvalue = lpd.PropertyInfo.GetValue(profile, null);
+            var newvalue = lpd.ValueFunction(profile, source);
+
+            // if new source is lower priority but can raise priority on change, 
+            // check stored hash, update if different
+
+            if (lpd.RaisePriorityOnChange && newvalue as string != null)
+            {
+                var changed = profile.ImportedPropertyChanged(lpd.PropertyInfo.Name, newvalue as string);
+                if (!changed
+                    && !string.IsNullOrEmpty(currentsource)
+                    && lpd.BetterSources.Contains(currentsource)) return;
+            }
+
+            // may skip update if changed to null
+            if (!lpd.UseIfNull && (newvalue == null || string.IsNullOrEmpty(newvalue.ToString()))) return;
+
+            // do not update if not changed
+            if (currentvalue == newvalue
+                || (currentvalue == null && newvalue is string && string.IsNullOrEmpty((string)newvalue))
+                || (currentvalue != null && newvalue != null && currentvalue.ToString() == newvalue.ToString())
+                )
+                return;
+
+            lpd.PropertyInfo.SetValue(profile, newvalue, null);
+            profile.SetUpdated(lpd.PropertyInfo.Name, SourceName);
+
+        }
+
+
+        [Obsolete]
+        private void UpdateProperty(TProfile profile, TSource source, Expression<Func<TProfile, object>> expr, Func<TProfile, TSource, object> val)
         {
             var n = expr.Body as MemberExpression;
             if (expr.Body.NodeType == ExpressionType.Convert) n = ((UnaryExpression)expr.Body).Operand as MemberExpression;
@@ -65,7 +160,7 @@ namespace NoCaml.UserProfiles
             }
 
 
-            // do not update if changed
+            // may skip update if changed to null
             if (!sa.UseIfEmpty && (newvalue == null || string.IsNullOrEmpty(newvalue.ToString()))) return;
 
             // do not update if not changed
@@ -83,19 +178,36 @@ namespace NoCaml.UserProfiles
 
         public void UpdateProfile(TProfile profile, TSource source)
         {
-
-            foreach (var kv in NullableMappings)
+            // this bit really belongs in the constructor, but it has to be called after the 
+            // subclass constructor completes.
+            if (PropertyCache == null)
             {
-                UpdateProperty(profile, source, kv.Key, kv.Value);
-            }
-
-            if (source != null)
-                foreach (var kv in Mappings)
+                lock (syncRoot)
                 {
-                    UpdateProperty(profile, source, kv.Key, kv.Value);
+                    if (PropertyCache == null)
+                    {
+                        UpdateCachedDetails();
+                    }
                 }
+            }
+            foreach (var kv in PropertyCache)
+            {
+                UpdateProperty(profile, source, kv.Value);
+            }
+            /*
 
+                        foreach (var kv in NullableMappings)
+                        {
+                            UpdateProperty(profile, source, kv.Key, kv.Value);
+                        }
 
+                        if (source != null)
+                            foreach (var kv in Mappings)
+                            {
+                                UpdateProperty(profile, source, kv.Key, kv.Value);
+                            }
+
+            */
             // for each field in mappings where shouldupdate is true
 
             // set value in profile
@@ -273,6 +385,14 @@ namespace NoCaml.UserProfiles
             }
         }
 
+
+        private object StatSync = new object();
+        //public int InitializationTime;
+        ///public int UpdateTime;
+        public int ProfilesChecked;
+        public int ProfilesUpdated;
+
+
         private bool LoaderInitialized = false;
         private bool BulkDataAvailable = false;
 
@@ -302,11 +422,13 @@ namespace NoCaml.UserProfiles
             profiles.EachParallel(p =>
             {
                 bool updated = false;
+                var changedPropertyCount = 0;
                 foreach (var pdl in activeLoaders)
                 {
 
                     if (pdl.ShouldUpdateInBatch(p))
                     {
+                        lock (pdl.StatSync) { pdl.ProfilesChecked++; }
                         try
                         {
                             if (pdl.BulkDataAvailable)
@@ -317,7 +439,10 @@ namespace NoCaml.UserProfiles
                             {
                                 pdl.UpdateProfileRealTime(p);
                             }
-                            updated = true;
+                            var c2 = p.ChangedProperties.Count;
+                            updated = updated || c2 > changedPropertyCount;
+                            if (c2 > changedPropertyCount) { lock (pdl.StatSync) { pdl.ProfilesUpdated++; } }
+                            changedPropertyCount = c2;
                         }
 
                         catch (Exception ex)

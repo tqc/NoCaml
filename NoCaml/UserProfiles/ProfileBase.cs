@@ -45,7 +45,7 @@ namespace NoCaml.UserProfiles
         /// A list of properties which have been changed since the profile was loaded
         /// from the profile store
         /// </summary>
-        List<string> ChangedProperties { get; set; }
+        public List<string> ChangedProperties { get; set; }
 
 
         #endregion
@@ -80,7 +80,8 @@ namespace NoCaml.UserProfiles
 
             foreach (Guid g in ids)
             {
-                try {
+                try
+                {
                     var a = am.GetAudience(g);
                     result.Add(a);
                 }
@@ -91,7 +92,7 @@ namespace NoCaml.UserProfiles
             }
 
             return result;
-            
+
         }
 
         public List<string> GetAudienceNames()
@@ -146,6 +147,7 @@ namespace NoCaml.UserProfiles
         private static Dictionary<string, Func<UserProfileValueCollectionWrapper, object>> LoadFunctions { get; set; }
         private static Dictionary<string, Func<object, object>> SaveFunctions { get; set; }
 
+
         protected abstract void RegisterCustomLoadSaveFunctions();
 
         protected void RegisterCustomPropertyLoader<TProfile, T>(
@@ -154,14 +156,14 @@ namespace NoCaml.UserProfiles
             Func<T, object> savefunc
             )
         {
-             // get property name from expression
+            // get property name from expression
             var n = propfunc.Body as MemberExpression;
             if (propfunc.Body.NodeType == ExpressionType.Convert) n = ((UnaryExpression)propfunc.Body).Operand as MemberExpression;
             var pi = n.Member as PropertyInfo;
 
 
-            LoadFunctions[pi.Name] = upvc=>loadfunc(upvc);
-            SaveFunctions[pi.Name] = o=>savefunc((T)o);
+            LoadFunctions[pi.Name] = upvc => loadfunc(upvc);
+            SaveFunctions[pi.Name] = o => savefunc((T)o);
 
 
         }
@@ -169,64 +171,158 @@ namespace NoCaml.UserProfiles
         private void RegisterLoadSaveFunctions()
         {
             if (LoadFunctions != null && SaveFunctions != null) { return; }
-            LoadFunctions = new Dictionary<string, Func<UserProfileValueCollectionWrapper, object>>();
-            SaveFunctions = new Dictionary<string, Func<object, object>>();
 
-            RegisterCustomPropertyLoader<ProfileBase, Dictionary<string, string>>(p => p.SourceLog,
-                    ppvc =>
-                    {
-                        var sl = (string)ppvc.Value;
-                        var dsl = new Dictionary<string, string>();
-                        if (!string.IsNullOrEmpty(sl))
-                        {
-                            var ll = sl.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-                            foreach (var l in ll)
-                            {
-                                if (!l.Contains(":")) continue;
-                                if (l.Contains("<")) continue;
-                                var cl = l.Split(':');
-                                var pn = cl[0].Trim();
-                                var cs = cl[1].Trim();
-                                dsl.Add(pn, cs);
-                            }
-
-                        }
-                        return dsl;
-                    },
-                    v => string.Join(
-                        "\n",
-                        v.Select(kv => kv.Key + ":" + kv.Value).ToArray()
-                        ));
-
-
-
-            RegisterCustomPropertyLoader<ProfileBase, Dictionary<string, string>>(p => p.HashLog,
-        ppvc =>
-        {
-            var sl = (string)ppvc.Value;
-            var dsl = new Dictionary<string, string>();
-            if (!string.IsNullOrEmpty(sl))
+            lock (syncRoot)
             {
-                var ll = sl.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (var l in ll)
+                if (LoadFunctions != null && SaveFunctions != null) { return; }
+                LoadFunctions = new Dictionary<string, Func<UserProfileValueCollectionWrapper, object>>();
+                SaveFunctions = new Dictionary<string, Func<object, object>>();
+
+                RegisterCustomPropertyLoader<ProfileBase, Dictionary<string, string>>(p => p.SourceLog,
+                        ppvc =>
+                        {
+                            var sl = (string)ppvc.Value;
+                            var dsl = new Dictionary<string, string>();
+                            if (!string.IsNullOrEmpty(sl))
+                            {
+                                var ll = sl.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                                foreach (var l in ll)
+                                {
+                                    if (!l.Contains(":")) continue;
+                                    if (l.Contains("<")) continue;
+                                    var cl = l.Split(':');
+                                    var pn = cl[0].Trim();
+                                    var cs = cl[1].Trim();
+                                    dsl.Add(pn, cs);
+                                }
+
+                            }
+                            return dsl;
+                        },
+                        v => string.Join(
+                            "\n",
+                            v.Select(kv => kv.Key + ":" + kv.Value).ToArray()
+                            ));
+
+
+
+                RegisterCustomPropertyLoader<ProfileBase, Dictionary<string, string>>(p => p.HashLog,
+            ppvc =>
+            {
+                var sl = (string)ppvc.Value;
+                var dsl = new Dictionary<string, string>();
+                if (!string.IsNullOrEmpty(sl))
                 {
-                    if (!l.Contains(":")) continue;
-                    if (l.Contains("<")) continue;
-                    var cl = l.Split(':');
-                    var pn = cl[0].Trim();
-                    var cs = cl[1].Trim();
-                    dsl.Add(pn, cs);
+                    var ll = sl.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var l in ll)
+                    {
+                        if (!l.Contains(":")) continue;
+                        if (l.Contains("<")) continue;
+                        var cl = l.Split(':');
+                        var pn = cl[0].Trim();
+                        var cs = cl[1].Trim();
+                        dsl.Add(pn, cs);
+                    }
+
                 }
+                return dsl;
+            },
+            v => string.Join(
+                "\n",
+                v.Select(kv => kv.Key + ":" + kv.Value).ToArray()
+                ));
+
+                RegisterCustomLoadSaveFunctions();
+
+                RegisterAllLoadFunctions();
 
             }
-            return dsl;
-        },
-        v => string.Join(
-            "\n",
-            v.Select(kv => kv.Key + ":" + kv.Value).ToArray()
-            ));
 
-            RegisterCustomLoadSaveFunctions();
+
+        }
+
+
+        private static List<PropertyAction> AllLoadFunctions;
+
+        private class PropertyAction
+        {
+            public PropertyInfo PropertyInfo;
+            public string DataPropertyName;
+            public Action<UserProfileWrapper, ProfileBase> LoadAction;
+            public Action<ProfileBase> SaveAction;
+            public List<AudienceAttribute> AffectedAudiences;
+
+
+            public PropertyAction(PropertyInfo pi, ProfilePropertyStorageAttribute psa)
+            {
+                PropertyInfo = pi;
+                DataPropertyName = psa.PropertyName;
+
+                // property needs loading - check for a custom load function
+                if (LoadFunctions.ContainsKey(PropertyInfo.Name))
+                {
+                    LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, LoadFunctions[PropertyInfo.Name](source[DataPropertyName]), null));
+                }
+                else
+                    if (PropertyInfo.PropertyType == typeof(double))
+                    {
+                        LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, Convert.ToDouble(source[DataPropertyName].Value), null));
+                    }
+                    else if (PropertyInfo.PropertyType == typeof(decimal))
+                    {
+                        LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, Convert.ToDecimal(source[DataPropertyName].Value), null));
+                    }
+                    else if (PropertyInfo.PropertyType == typeof(int))
+                    {
+                        LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, Convert.ToInt32(source[DataPropertyName].Value), null));
+                    }
+                    else if (PropertyInfo.PropertyType == typeof(bool))
+                    {
+                        LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, Convert.ToBoolean(source[DataPropertyName].Value), null));
+                    }
+                    else if (PropertyInfo.PropertyType == typeof(DateTime?))
+                    {
+                        LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, source[DataPropertyName].Count == 0 ? (DateTime?)null : Convert.ToDateTime(source[DataPropertyName].Value), null));
+                    }
+                    else if (PropertyInfo.PropertyType == typeof(DateTime))
+                    {
+                        LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, Convert.ToDateTime(source[DataPropertyName].Value), null));
+                    }
+                    else
+                    {
+                        LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, source[DataPropertyName].Value, null));
+                    }
+
+                    // property needs saving - check for a custom save function
+                    if (SaveFunctions.ContainsKey(PropertyInfo.Name))
+                    {
+                        SaveAction = (dest) => dest.SetIfChanged(PropertyInfo, DataPropertyName, AffectedAudiences, SaveFunctions[PropertyInfo.Name]);
+                    }
+                    else
+                    {
+                        SaveAction = (dest) => dest.SetIfChanged(PropertyInfo, DataPropertyName, AffectedAudiences, o => o);
+                    }
+
+                    AffectedAudiences = PropertyInfo.GetCustomAttributes(typeof(AudienceAttribute), false)
+               .Cast<AudienceAttribute>().ToList();
+            }
+        }
+
+        private void RegisterAllLoadFunctions()
+        {
+            AllLoadFunctions = new List<PropertyAction>();
+
+            var pl = this.GetType().GetProperties();
+            foreach (var p in pl)
+            {
+
+                // no need to find a load function for a read only property
+                if (!p.CanWrite) continue;
+                var psa = (ProfilePropertyStorageAttribute)p.GetCustomAttributes(typeof(ProfilePropertyStorageAttribute), true).FirstOrDefault();
+                // only need to load properties that are stored
+                if (psa == null) continue;
+                AllLoadFunctions.Add(new PropertyAction(p, psa));
+            }
         }
 
         protected ProfileBase(SPSite site, UserProfileWrapper profile)
@@ -244,60 +340,14 @@ namespace NoCaml.UserProfiles
             LanID = (string)profile["AccountName"].Value;
 
             // load properties that have a known source
-            var pl = this.GetType().GetProperties();
-            foreach (var p in pl)
+            foreach (var a in AllLoadFunctions)
             {
-                var psa = (ProfilePropertyStorageAttribute)p.GetCustomAttributes(typeof(ProfilePropertyStorageAttribute), true).FirstOrDefault();
-                if (psa != null)
-                {
-                    object loadedvalue = null;
-                    // property needs loading - check for a custom load function
-                    if (LoadFunctions.ContainsKey(p.Name))
-                    {
-                        loadedvalue = LoadFunctions[p.Name](profile[psa.PropertyName]);
-                    }
-                    else
-                    {
-                        if (p.PropertyType == typeof(double))
-                        {
-                            loadedvalue = Convert.ToDouble(profile[psa.PropertyName].Value);
-                        }
-                        else if (p.PropertyType == typeof(decimal))
-                        {
-                            loadedvalue = Convert.ToDecimal(profile[psa.PropertyName].Value);
-                        }
-                        else if (p.PropertyType == typeof(int))
-                        {
-                            loadedvalue = Convert.ToInt32(profile[psa.PropertyName].Value);
-                        }
-                        else if (p.PropertyType == typeof(bool))
-                        {
-                            loadedvalue = Convert.ToBoolean(profile[psa.PropertyName].Value);
-                        }
-                        else if (p.PropertyType == typeof(DateTime?))
-                        {
-                            loadedvalue = profile[psa.PropertyName].Count == 0 ? (DateTime?)null : Convert.ToDateTime(profile[psa.PropertyName].Value);
-                        }
-                        else if (p.PropertyType == typeof(DateTime))
-                        {
-                            loadedvalue = Convert.ToDateTime(profile[psa.PropertyName].Value);
-                        }
-                        else
-                        {
-                            loadedvalue = profile[psa.PropertyName].Value;
-                        }
-                    }
-                    if (p.CanWrite)
-                    {
-                        p.SetValue(this, loadedvalue, null);
-                    }
-                }
+                a.LoadAction(profile, this);
             }
 
 
-
-
         }
+
 
         internal string GetCurrentSource(string p)
         {
@@ -374,17 +424,32 @@ namespace NoCaml.UserProfiles
         {
             SetIfChanged(pi, o => fval((T)o));
         }
+
+        [Obsolete]
         private void SetIfChanged(PropertyInfo pi, Func<object, object> fval)
         {
-            // if not in changed properties list, do not save
             if (!ChangedProperties.Contains(pi.Name)) return;
 
             // get storage property name
 
             var propname = pi.GetCustomAttributes(typeof(ProfilePropertyStorageAttribute), false)
-                .Cast<ProfilePropertyStorageAttribute>()
-                .Select(a => a.PropertyName)
-                .FirstOrDefault();
+    .Cast<ProfilePropertyStorageAttribute>()
+    .Select(a => a.PropertyName)
+    .FirstOrDefault();
+            if (string.IsNullOrEmpty(propname)) return;
+
+            var aal = pi.GetCustomAttributes(typeof(AudienceAttribute), false)
+            .Cast<AudienceAttribute>().ToList();
+
+            SetIfChanged(pi, propname, aal, fval);
+        }
+        
+        private void SetIfChanged(PropertyInfo pi, string propname, List<AudienceAttribute> audienceAttributes, Func<object, object> fval)
+        {
+            // if not in changed properties list, do not save
+            if (!ChangedProperties.Contains(pi.Name)) return;
+
+
             if (string.IsNullOrEmpty(propname)) return;
 
             LastProperty = propname;
@@ -421,9 +486,7 @@ namespace NoCaml.UserProfiles
             }
 
             // queue audience update if necessary
-            var aal = pi.GetCustomAttributes(typeof(AudienceAttribute), false)
-            .Cast<AudienceAttribute>();
-            foreach (var aa in aal)
+            foreach (var aa in audienceAttributes)
             {
                 if (string.IsNullOrEmpty(aa.Filter)
                     || (oldval != null && oldval.Contains(aa.Filter))
@@ -452,31 +515,13 @@ namespace NoCaml.UserProfiles
             try
             {
 
-
-
-                // load properties that have a known source
-                var pl = this.GetType().GetProperties();
-                foreach (var p in pl)
+                foreach (var a in AllLoadFunctions)
                 {
-                    var psa = (ProfilePropertyStorageAttribute)p.GetCustomAttributes(typeof(ProfilePropertyStorageAttribute), true).FirstOrDefault();
-                    if (psa != null)
-                    {
-                        // property needs saving - check for a custom save function
-                        if (SaveFunctions.ContainsKey(p.Name))
-                        {
-                            SetIfChanged(p, SaveFunctions[p.Name]);
-                        }
-                        else
-                        {
-                            SetIfChanged(p, o => o);
-                        }
-                    }
+                    a.SaveAction(this);
                 }
 
-
-
                 SaveCustomProperties();
-                
+
                 Profile.Commit();
                 ChangedProperties = new List<string>();
             }
