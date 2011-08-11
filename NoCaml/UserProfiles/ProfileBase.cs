@@ -56,20 +56,29 @@ namespace NoCaml.UserProfiles
 
 
         public static List<string> ChangedAudiences { get; private set; }
+        private static object ChangedAudienceSyncRoot = new object();
+
 
         private static void RecordChangedAudience(string audienceName)
         {
-            if (ChangedAudiences == null) ChangedAudiences = new List<string>();
-            if (!ChangedAudiences.Contains(audienceName)) ChangedAudiences.Add(audienceName);
+            lock (ChangedAudienceSyncRoot)
+            {
+                if (ChangedAudiences == null) ChangedAudiences = new List<string>();
+                if (!ChangedAudiences.Contains(audienceName)) ChangedAudiences.Add(audienceName);
+            }
         }
 
         public static void CompileChangedAudiences(SPSite site)
         {
-            if (ChangedAudiences == null) return;
+                if (ChangedAudiences == null) return;
+            lock (ChangedAudienceSyncRoot)
+            {
 
-            var am = new AudienceManagerWrapper(site);
-            foreach (var an in ChangedAudiences) am.CompileAudience(an, false);
-            ChangedAudiences = null;
+
+                var am = new AudienceManagerWrapper(site);
+                foreach (var an in ChangedAudiences) am.CompileAudience(an, false);
+                ChangedAudiences = null;
+            }
         }
 
         public List<AudienceWrapper> GetAudiences()
