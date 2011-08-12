@@ -82,6 +82,9 @@ namespace NoCaml.UserProfiles
             // if this loader is not a valid source, return
             if (!lpd.IsValid) return;
 
+            // only some update functions are valid for null source
+            if (source == null && !lpd.UpdateForNullSource) return;
+
             var currentsource = profile.GetCurrentSource(lpd.PropertyInfo.Name);
 
             // if current source is higher priority, do not update
