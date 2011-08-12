@@ -61,19 +61,21 @@ namespace NoCaml.UserProfiles
 
         private void UpdateCachedDetails()
         {
-            PropertyCache = new Dictionary<string, LoadablePropertyDetails>();
+            var pc = new Dictionary<string, LoadablePropertyDetails>();
             foreach (var kv in Mappings)
             {
                 var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, false);
-                if (lpd.IsValid) PropertyCache.Add(lpd.PropertyInfo.Name, lpd);
+                if (lpd.IsValid) pc.Add(lpd.PropertyInfo.Name, lpd);
             }
 
             foreach (var kv in NullableMappings)
             {
                 var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, true);
-                if (lpd.IsValid) PropertyCache.Add(lpd.PropertyInfo.Name, lpd);
+                if (lpd.IsValid) pc.Add(lpd.PropertyInfo.Name, lpd);
             }
-
+            // done this way to avoid modified collection exceptions - PropertyCache is supposed to be either
+            // null or complete.
+            PropertyCache = pc;
         }
 
 
@@ -221,7 +223,7 @@ namespace NoCaml.UserProfiles
 
     public abstract class ProfileDataLoader<TProfile> where TProfile : ProfileBase
     {
-        protected string SourceName { get; set; }
+        public string SourceName { get; protected set; }
 
 
         /// <summary>
