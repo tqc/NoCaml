@@ -199,9 +199,14 @@ namespace NoCaml
                 else if (pa.Type == SPFieldType.User && p.PropertyType == typeof(string))
                 {                    
                     var un = (string)p.GetValue(this, null);
-                    var u = item.Web.EnsureUser(un);
-
-                    item[pa.DisplayName] = new SPFieldUserValue(item.Web, u.ID, un);
+                    if (string.IsNullOrEmpty(un)) {
+                        item[pa.DisplayName] = null;
+                    }
+                    else
+                    {
+                        var u = item.Web.EnsureUser(un);
+                        item[pa.DisplayName] = new SPFieldUserValue(item.Web, u.ID, un);
+                    }
                 }
                 else
                 {
