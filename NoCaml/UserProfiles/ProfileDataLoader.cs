@@ -282,6 +282,17 @@ namespace NoCaml.UserProfiles
             return false;
         }
 
+        /// <summary>
+        /// Secondary update - apply changes that require all profiles to be processed previously
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        protected virtual bool UpdateProfileSecondary(TProfile p)
+        {
+            return false;
+        }
+
+
         public static Action<string, string, string> Log { get; set; }
 
         /// <summary>
@@ -351,6 +362,16 @@ namespace NoCaml.UserProfiles
             return false;
         }
 
+        protected virtual bool ShouldUpdateInSecondaryUpdate(TProfile p)
+        {
+            return false;
+        }
+
+        public virtual bool SecondaryUpdateRequired()
+        {
+            return false;
+        }
+
 
         private static void LogException(string source, Exception ex)
         {
@@ -396,6 +417,8 @@ namespace NoCaml.UserProfiles
         ///public int UpdateTime;
         public int ProfilesChecked;
         public int ProfilesUpdated;
+        public int ProfilesCheckedInSecondaryUpdate;
+        public int ProfilesUpdatedInSecondaryUpdate;
 
 
         private bool LoaderInitialized = false;
@@ -470,6 +493,57 @@ namespace NoCaml.UserProfiles
                 }
 
             });
+
+
+            // some loaders can affect other profiles. These will have properties set to specify that 
+            // further updating is required.
+
+            var delayedLoaders = activeLoaders.Where(pdl => pdl.SecondaryUpdateRequired()).ToList();
+
+            if (delayedLoaders.Count > 0)
+            {
+                profiles.EachParallel(p =>
+                {
+                    bool updated = false;
+                    var changedPropertyCount = 0;
+                    foreach (var pdl in delayedLoaders)
+                    {
+
+                        if (pdl.ShouldUpdateInSecondaryUpdate(p))
+                        {
+                            lock (pdl.StatSync) { pdl.ProfilesCheckedInSecondaryUpdate++; }
+                            try
+                            {
+                                pdl.UpdateProfileSecondary(p);
+
+                                var c2 = p.ChangedProperties.Count;
+                                updated = updated || c2 > changedPropertyCount;
+                                if (c2 > changedPropertyCount) { lock (pdl.StatSync) { pdl.ProfilesUpdatedInSecondaryUpdate++; } }
+                                changedPropertyCount = c2;
+                            }
+
+                            catch (Exception ex)
+                            {
+                                LogException(pdl.SourceName + "(Secondary):" + p.LanID, ex);
+                            }
+                        }
+
+                    }
+                    if (updated)
+                    {
+                        try
+                        {
+                            p.Save();
+                        }
+                        catch (Exception ex)
+                        {
+                            LogException("Saving:" + p.LanID, ex);
+                        }
+                    }
+
+                });
+
+            }
 
         }
 
