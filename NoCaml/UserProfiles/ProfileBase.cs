@@ -76,7 +76,7 @@ namespace NoCaml.UserProfiles
                 lock (syncRoot)
                 {
                     if (data.Count == 0) return null;
-                    var result = data[data.Count-1];
+                    var result = data[data.Count - 1];
                     data.RemoveAt(data.Count - 1);
                     return result;
                 }
@@ -107,6 +107,8 @@ namespace NoCaml.UserProfiles
             ChangedAudiences.Push(audienceName);
         }
 
+        private static object compilationSyncRoot = new object();
+        private static bool audienceCompilationInProgress = false;
         /// <summary>
         /// Compile audiences flagged as changed. 
         /// </summary>
@@ -114,15 +116,32 @@ namespace NoCaml.UserProfiles
         /// <param name="max"></param>
         public static void CompileChangedAudiences(SPSite site, int max)
         {
-            AudienceManagerWrapper am = null;
-            for (int i = 0; i < max; i++) {
-                var an = ChangedAudiences.Pop();
-                if (an == null) return;
-                if (am == null) am = new AudienceManagerWrapper(site);
-                am.CompileAudience(an, false);
+            if (audienceCompilationInProgress) return;
+            lock (compilationSyncRoot)
+            {
+                if (audienceCompilationInProgress) return;
+                audienceCompilationInProgress = true;
+                AudienceManagerWrapper am = null;
+                for (int i = 0; i < max; i++)
+                {
+                    try
+                    {
+
+                        var an = ChangedAudiences.Pop();
+                        if (an == null) return;
+                        if (am == null) am = new AudienceManagerWrapper(site);
+                        am.CompileAudience(an, false);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        // no logging available here, but errors in individual audiences are probably logged elsewhere.
+                        // ignore the error and move on to the next audience
+                    }
+                }
+                audienceCompilationInProgress = false;
             }
         }
-
         public List<AudienceWrapper> GetAudiences()
         {
             var am = new AudienceManagerWrapper(this.Site);
@@ -347,18 +366,18 @@ namespace NoCaml.UserProfiles
                         LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, source[DataPropertyName].Value, null));
                     }
 
-                    // property needs saving - check for a custom save function
-                    if (SaveFunctions.ContainsKey(PropertyInfo.Name))
-                    {
-                        SaveAction = (dest) => dest.SetIfChanged(PropertyInfo, DataPropertyName, AffectedAudiences, SaveFunctions[PropertyInfo.Name]);
-                    }
-                    else
-                    {
-                        SaveAction = (dest) => dest.SetIfChanged(PropertyInfo, DataPropertyName, AffectedAudiences, o => o);
-                    }
+                // property needs saving - check for a custom save function
+                if (SaveFunctions.ContainsKey(PropertyInfo.Name))
+                {
+                    SaveAction = (dest) => dest.SetIfChanged(PropertyInfo, DataPropertyName, AffectedAudiences, SaveFunctions[PropertyInfo.Name]);
+                }
+                else
+                {
+                    SaveAction = (dest) => dest.SetIfChanged(PropertyInfo, DataPropertyName, AffectedAudiences, o => o);
+                }
 
-                    AffectedAudiences = PropertyInfo.GetCustomAttributes(typeof(AudienceAttribute), false)
-               .Cast<AudienceAttribute>().ToList();
+                AffectedAudiences = PropertyInfo.GetCustomAttributes(typeof(AudienceAttribute), false)
+           .Cast<AudienceAttribute>().ToList();
             }
         }
 
@@ -497,7 +516,7 @@ namespace NoCaml.UserProfiles
 
             SetIfChanged(pi, propname, aal, fval);
         }
-        
+
         private void SetIfChanged(PropertyInfo pi, string propname, List<AudienceAttribute> audienceAttributes, Func<object, object> fval)
         {
             // if not in changed properties list, do not save
