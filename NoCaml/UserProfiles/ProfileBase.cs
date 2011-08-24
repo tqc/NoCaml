@@ -55,29 +55,71 @@ namespace NoCaml.UserProfiles
         protected UserProfileManagerWrapper UserProfileManager { get; set; }
 
 
-        public static List<string> ChangedAudiences { get; private set; }
-        private static object ChangedAudienceSyncRoot = new object();
-
-
-        private static void RecordChangedAudience(string audienceName)
+        /// <summary>
+        /// A thread safe stack that holds at most one instance of each audience name
+        /// Returns the most recently added audience first so that a backlog of queued audiences does 
+        /// not affect realtime functionality.
+        /// </summary>
+        public class AudienceCompilationQueue
         {
-            lock (ChangedAudienceSyncRoot)
+            private List<string> data = new List<string>();
+            private object syncRoot = new object();
+
+            public AudienceCompilationQueue()
             {
-                if (ChangedAudiences == null) ChangedAudiences = new List<string>();
-                if (!ChangedAudiences.Contains(audienceName)) ChangedAudiences.Add(audienceName);
+
             }
+
+            public string Pop()
+            {
+                if (data.Count == 0) return null;
+                lock (syncRoot)
+                {
+                    if (data.Count == 0) return null;
+                    var result = data[data.Count-1];
+                    data.RemoveAt(data.Count - 1);
+                    return result;
+                }
+            }
+
+            public void Push(string val)
+            {
+                lock (syncRoot)
+                {
+                    if (data.Contains(val))
+                    {
+                        data.Remove(val);
+                    }
+                    data.Add(val);
+                }
+            }
+
+            public int Count { get { return data.Count; } }
+
         }
 
-        public static void CompileChangedAudiences(SPSite site)
+
+        public static AudienceCompilationQueue ChangedAudiences = new AudienceCompilationQueue();
+
+
+        public static void RecordChangedAudience(string audienceName)
         {
-                if (ChangedAudiences == null) return;
-            lock (ChangedAudienceSyncRoot)
-            {
+            ChangedAudiences.Push(audienceName);
+        }
 
-
-                var am = new AudienceManagerWrapper(site);
-                foreach (var an in ChangedAudiences) am.CompileAudience(an, false);
-                ChangedAudiences = null;
+        /// <summary>
+        /// Compile audiences flagged as changed. 
+        /// </summary>
+        /// <param name="site"></param>
+        /// <param name="max"></param>
+        public static void CompileChangedAudiences(SPSite site, int max)
+        {
+            AudienceManagerWrapper am = null;
+            for (int i = 0; i < max; i++) {
+                var an = ChangedAudiences.Pop();
+                if (an == null) return;
+                if (am == null) am = new AudienceManagerWrapper(site);
+                am.CompileAudience(an, false);
             }
         }
 
@@ -177,13 +219,15 @@ namespace NoCaml.UserProfiles
 
         }
 
+        private static bool LoadSaveFunctionsRegistered = false;
+
         private void RegisterLoadSaveFunctions()
         {
-            if (LoadFunctions != null && SaveFunctions != null) { return; }
+            if (LoadSaveFunctionsRegistered) { return; }
 
             lock (syncRoot)
             {
-                if (LoadFunctions != null && SaveFunctions != null) { return; }
+                if (LoadSaveFunctionsRegistered) { return; }
                 LoadFunctions = new Dictionary<string, Func<UserProfileValueCollectionWrapper, object>>();
                 SaveFunctions = new Dictionary<string, Func<object, object>>();
 
@@ -245,6 +289,7 @@ namespace NoCaml.UserProfiles
 
                 RegisterAllLoadFunctions();
 
+                LoadSaveFunctionsRegistered = true;
             }
 
 
@@ -499,6 +544,7 @@ namespace NoCaml.UserProfiles
             {
                 if (string.IsNullOrEmpty(aa.Filter)
                     || (oldval != null && oldval.Contains(aa.Filter))
+                    || (pi.PropertyType == typeof(bool)) // boolean filters are always affected if the value changes
                     || (val is string && val != null && ((string)val).Contains(aa.Filter))
                     )
                 {
