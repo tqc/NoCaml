@@ -87,9 +87,12 @@ namespace NoCaml.UserProfiles
         {
             var uial = (System.Collections.ArrayList)miGetMembership.Invoke(A, new object[] { });
             var luiw = new List<UserInfoWrapper>();
-            foreach (object ui in uial)
+            if (uial != null)
             {
-                luiw.Add(new UserInfoWrapper(ui));
+                foreach (object ui in uial)
+                {
+                    luiw.Add(new UserInfoWrapper(ui));
+                }
             }
             return luiw;
         }
