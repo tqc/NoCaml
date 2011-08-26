@@ -324,6 +324,7 @@ namespace NoCaml.UserProfiles
             public Action<UserProfileWrapper, ProfileBase> LoadAction;
             public Action<ProfileBase> SaveAction;
             public List<AudienceAttribute> AffectedAudiences;
+            public List<ProfilePropertySourceAttribute> ValidSources;
 
 
             public PropertyAction(PropertyInfo pi, ProfilePropertyStorageAttribute psa)
@@ -378,6 +379,9 @@ namespace NoCaml.UserProfiles
 
                 AffectedAudiences = PropertyInfo.GetCustomAttributes(typeof(AudienceAttribute), false)
            .Cast<AudienceAttribute>().ToList();
+                ValidSources = PropertyInfo.GetCustomAttributes(false)
+                    .Where(a=>a is ProfilePropertySourceAttribute)
+                    .Cast<ProfilePropertySourceAttribute>().ToList();
             }
         }
 
