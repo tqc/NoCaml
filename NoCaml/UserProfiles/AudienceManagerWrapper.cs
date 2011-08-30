@@ -138,7 +138,7 @@ namespace NoCaml.UserProfiles
         /// Create audiences specified as attributes
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public void EnsureAudiencesExist<T>() where T : ProfileBase
+        public void EnsureAudiencesExist<T>(bool removeUnmanagedAudiences) where T : ProfileBase
         {
             var audiences = new Dictionary<string, AudienceWrapper>();
 
@@ -186,32 +186,46 @@ namespace NoCaml.UserProfiles
 
 
             }
-            EnsureAudiencesExist(audiences.Values, true);
+            EnsureAudiencesExist(audiences.Values, true, removeUnmanagedAudiences);
 
 
         }
 
 
 
-        public void EnsureAudiencesExist(IEnumerable<AudienceWrapper> audiences, bool updateRules)
+        public void EnsureAudiencesExist(IEnumerable<AudienceWrapper> audiences, bool updateRules, bool removeUnmanagedAudiences)
         {
-
-            var al = Audiences.OfType<Microsoft.Office.Server.Audience.Audience>().ToList();
-
-            var existingnames = al.Select(a => a.AudienceName);
-
-            var missing = audiences.Where(a => !existingnames.Contains(a.Name));
-
             var adp = TAudience.GetProperty("AudienceDescription");
             var anp = TAudience.GetProperty("AudienceName");
             var arp = TAudience.GetProperty("AudienceRules");
             var agop = TAudience.GetProperty("GroupOperation");
 
+            
+            // get audience basic properties
+            var wrappedAudiences = WrappedAudiences.ToList();
+
+            // because the indexer is painfully slow
+            var cachedaudiences = Audiences.Cast<object>().ToDictionary(
+                k => (string)anp.GetValue(k, null),
+                v=> v
+                );
+
+
+            var missing = audiences.Where(a => !cachedaudiences.ContainsKey(a.Name));
+
+            var removedNames = cachedaudiences.Keys.Where(en => !audiences.Any(a => a.Name == en)).ToList();
+
+
 
             foreach (var na in audiences)
             {
                 if (na.Description == null) na.Description = na.Name;
-                object ea = al.Where(a => a.AudienceName == na.Name).FirstOrDefault();
+                object ea = null;
+                if (cachedaudiences.ContainsKey(na.Name)) {
+                    // ea = Audiences[na.Name];
+                    //ea = Audiences.GetType().GetProperty("Item", new Type[] { typeof(string)}).GetValue(Audiences, new object[] { na.Name });
+                    ea = cachedaudiences[na.Name];
+                }
                 bool changed = false;
 
                 if (ea == null)
@@ -287,15 +301,24 @@ namespace NoCaml.UserProfiles
                         }
                     }
 
-
-
                 }
 
+                
 
                 if (changed)
                 {
                     TAudience.GetMethod("Commit").Invoke(ea, new object[] { });
                     CompileAudience(na.Name, true);
+                }
+
+            }
+
+            if (removeUnmanagedAudiences && removedNames.Count > 0)
+            {
+                foreach (var rn in removedNames)
+                {
+                    //Audiences.Remove(rn)
+                    Audiences.GetType().GetMethod("Remove", new Type[] { typeof(string) }).Invoke(Audiences, new object[] { rn });
                 }
 
             }
