@@ -8,6 +8,7 @@ namespace NoCaml.UserProfiles
 {
     public class AudienceWrapper
     {
+        public Guid AudienceId { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
         public string Operator { get; set; }
@@ -15,6 +16,7 @@ namespace NoCaml.UserProfiles
 
         private object A { get; set; }
         private static PropertyInfo piName;
+        private static PropertyInfo piId;
         private static PropertyInfo piDescription;
         private static PropertyInfo piOperator;
         private static PropertyInfo piRules;
@@ -31,6 +33,7 @@ namespace NoCaml.UserProfiles
 			if (TA == null)
 			{
 				TA = a.GetType();
+                piId = TA.GetProperty("AudienceID");
                 piName = TA.GetProperty("AudienceName");
                 piDescription = TA.GetProperty("AudienceDescription");
                 piOperator = TA.GetProperty("GroupOperation");
@@ -44,6 +47,7 @@ namespace NoCaml.UserProfiles
 
 
             Name = piName.GetValue(A, new object[] { }) as string;
+            AudienceId = (Guid)piId.GetValue(A, new object[] { });
             Description = piDescription.GetValue(A, new object[] { }) as string;
             Operator = piOperator.GetValue(A, new object[] { }).ToString();
 
