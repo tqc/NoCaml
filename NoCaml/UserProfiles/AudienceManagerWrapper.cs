@@ -317,8 +317,15 @@ namespace NoCaml.UserProfiles
             {
                 foreach (var rn in removedNames)
                 {
-                    //Audiences.Remove(rn)
-                    Audiences.GetType().GetMethod("Remove", new Type[] { typeof(string) }).Invoke(Audiences, new object[] { rn });
+                    try
+                    {
+                        //Audiences.Remove(rn)
+                        Audiences.GetType().GetMethod("Remove", new Type[] { typeof(string) }).Invoke(Audiences, new object[] { rn });
+                    }
+                    catch (TargetInvocationException tie)
+                    {
+                        throw new Exception("Error removing audience "+rn +" - "+ tie.InnerException.Message, tie.InnerException);
+                    }
                 }
 
             }
