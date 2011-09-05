@@ -197,6 +197,7 @@ namespace NoCaml.UserProfiles
         {
             var adp = TAudience.GetProperty("AudienceDescription");
             var anp = TAudience.GetProperty("AudienceName");
+            var aip = TAudience.GetProperty("AudienceID");
             var arp = TAudience.GetProperty("AudienceRules");
             var agop = TAudience.GetProperty("GroupOperation");
 
@@ -205,7 +206,10 @@ namespace NoCaml.UserProfiles
             var wrappedAudiences = WrappedAudiences.ToList();
 
             // because the indexer is painfully slow
-            var cachedaudiences = Audiences.Cast<object>().ToDictionary(
+            var cachedaudiences = Audiences.Cast<object>()
+                // filter out the all site users audience which cannot be updated or removed
+                .Where(o=> (Guid)aip.GetValue(o, null) != Guid.Empty)
+                .ToDictionary(
                 k => (string)anp.GetValue(k, null),
                 v=> v
                 );
@@ -318,7 +322,7 @@ namespace NoCaml.UserProfiles
                 foreach (var rn in removedNames)
                 {
                     try
-                    {
+                    {                        
                         //Audiences.Remove(rn)
                         Audiences.GetType().GetMethod("Remove", new Type[] { typeof(string) }).Invoke(Audiences, new object[] { rn });
                     }
