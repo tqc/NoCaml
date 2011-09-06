@@ -128,7 +128,7 @@ namespace NoCaml.UserProfiles
                     {
 
                         var an = ChangedAudiences.Pop();
-                        if (an == null) return;
+                        if (an == null) break;
                         if (am == null) am = new AudienceManagerWrapper(site);
                         am.CompileAudience(an, false);
 
