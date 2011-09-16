@@ -122,6 +122,7 @@
     <Compile Include="UserProfiles\ProfilePropertySourceAttribute.cs" />
     <Compile Include="UserProfiles\ProfilePropertyStorageAttribute.cs" />
     <Compile Include="UserProfiles\Rule.cs" />
+    <Compile Include="UserProfiles\SourceLogEntry.cs" />
     <Compile Include="UserProfiles\UserInfoWrapper.cs" />
     <Compile Include="UserProfiles\UserProfileWrapper.cs" />
   </ItemGroup>
@@ -159,7 +160,7 @@
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties BuildVersion_UpdateFileVersion="True" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_UseGlobalSettings="False" />
+      <UserProperties BuildVersion_UseGlobalSettings="False" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateFileVersion="True" />
     </VisualStudio>
   </ProjectExtensions>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

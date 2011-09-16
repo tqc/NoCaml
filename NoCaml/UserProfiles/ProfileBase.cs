@@ -20,7 +20,7 @@ namespace NoCaml.UserProfiles
         protected ProfileBase()
         {
             ChangedProperties = new List<string>();
-            SourceLog = new Dictionary<string, string>();
+            SourceLog = new Dictionary<string, SourceLogEntry>();
             HashLog = new Dictionary<string, string>();
         }
 
@@ -35,7 +35,7 @@ namespace NoCaml.UserProfiles
         /// Records the source for each property currently set on the profile
         /// </summary>
         [ProfilePropertyStorage("SourceLog", PropertyType = "HTML", Length = 2000)]
-        public Dictionary<string, string> SourceLog { get; set; }
+        public Dictionary<string, SourceLogEntry> SourceLog { get; set; }
 
         [ProfilePropertyStorage("HashLog", PropertyType = "HTML", Length = 2000)]
         public Dictionary<string, string> HashLog { get; set; }
@@ -250,22 +250,50 @@ namespace NoCaml.UserProfiles
                 LoadFunctions = new Dictionary<string, Func<UserProfileValueCollectionWrapper, object>>();
                 SaveFunctions = new Dictionary<string, Func<object, object>>();
 
-                RegisterCustomPropertyLoader<ProfileBase, Dictionary<string, string>>(p => p.SourceLog,
+                RegisterCustomPropertyLoader<ProfileBase, Dictionary<string, SourceLogEntry>>(p => p.SourceLog,
                         ppvc =>
                         {
                             var sl = (string)ppvc.Value;
-                            var dsl = new Dictionary<string, string>();
+                            var dsl = new Dictionary<string, SourceLogEntry>();
                             if (!string.IsNullOrEmpty(sl))
                             {
                                 var ll = sl.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
                                 foreach (var l in ll)
                                 {
-                                    if (!l.Contains(":")) continue;
+                                    // editing in the out of box ui can add html tags that should be ignored
                                     if (l.Contains("<")) continue;
-                                    var cl = l.Split(':');
-                                    var pn = cl[0].Trim();
-                                    var cs = cl[1].Trim();
-                                    dsl.Add(pn, cs);
+
+                                    
+                                    // new format - property|source|date|user
+                                    if (l.Contains("|"))
+                                    {
+                                        var cl = l.Split();
+                                        if (cl.Length < 4) continue;
+                                        var entry = new SourceLogEntry()
+                                        {
+                                            Field = cl[0].Trim(),
+                                            Source = cl[1].Trim(),
+                                            Updated = DateTime.Parse(cl[2].Trim()),
+                                            User = cl[3].Trim()
+                                        };
+                                        dsl[entry.Field] = entry;
+                                    }
+                                    else
+                                    {
+                                        //old format - property:source
+                                        if (!l.Contains(":")) continue;
+                                        var cl = l.Split(':');
+
+                                        if (cl.Length < 2) continue;
+                                        var entry = new SourceLogEntry()
+                                        {
+                                            Field = cl[0].Trim(),
+                                            Source = cl[1].Trim(),
+                                            Updated = DateTime.MinValue,
+                                            User = ""
+                                        };
+                                        dsl[entry.Field] = entry;
+                                    }
                                 }
 
                             }
@@ -273,7 +301,8 @@ namespace NoCaml.UserProfiles
                         },
                         v => string.Join(
                             "\n",
-                            v.Select(kv => kv.Key + ":" + kv.Value).ToArray()
+                            v.Select(kv =>  string.Format("{0}|{1}|{2:yyyy-MM-dd HH:mm}|{3}", kv.Value.Field, kv.Value.Source, kv.Value.Updated, kv.Value.User)
+                            ).ToArray()
                             ));
 
 
@@ -428,13 +457,22 @@ namespace NoCaml.UserProfiles
 
         internal string GetCurrentSource(string p)
         {
-            if (SourceLog.ContainsKey(p)) return SourceLog[p];
+            if (SourceLog.ContainsKey(p)) return SourceLog[p].Source;
             else return null;
         }
 
         public void SetUpdated(string p, string source)
         {
-            SourceLog[p] = source;
+
+            var e = new SourceLogEntry()
+            {
+                Field = p,
+                Source = source,
+                Updated = DateTime.Now,
+                User = SPContext.Current != null && SPContext.Current.Web != null && SPContext.Current.Web.CurrentUser != null
+                ? SPContext.Current.Web.CurrentUser.LoginName : ""
+            };
+            SourceLog[p] = e;
             ChangedProperties.Add(p);
             ChangedProperties.Add("SourceLog");
             Debug.WriteLine(string.Format("{0}: Updated {1} from {2}", this.LanID, p, source));
