@@ -267,7 +267,7 @@ namespace NoCaml.UserProfiles
                                     // new format - property|source|date|user
                                     if (l.Contains("|"))
                                     {
-                                        var cl = l.Split();
+                                        var cl = l.Split('|');
                                         if (cl.Length < 4) continue;
                                         var entry = new SourceLogEntry()
                                         {
