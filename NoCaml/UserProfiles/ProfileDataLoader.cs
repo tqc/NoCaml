@@ -47,7 +47,7 @@ namespace NoCaml.UserProfiles
                 }
                 else
                 {
-                    BetterSources = pial.Where(a => a.Order < sa.Order).Select(a => sa.ProfileSource).ToList();
+                    BetterSources = pial.Where(a => a.Order < sa.Order).Select(a => a.ProfileSource).ToList();
                     RaisePriorityOnChange = sa.RaisePriorityIfChanged;
                     UseIfNull = sa.UseIfEmpty;
                     UpdateForNullSource = updateForNullSource;
