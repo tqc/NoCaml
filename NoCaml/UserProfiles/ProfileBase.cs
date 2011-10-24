@@ -263,7 +263,7 @@ namespace NoCaml.UserProfiles
                                     // editing in the out of box ui can add html tags that should be ignored
                                     if (l.Contains("<")) continue;
 
-                                    
+
                                     // new format - property|source|date|user
                                     if (l.Contains("|"))
                                     {
@@ -274,8 +274,23 @@ namespace NoCaml.UserProfiles
                                             Field = cl[0].Trim(),
                                             Source = cl[1].Trim(),
                                             Updated = DateTime.Parse(cl[2].Trim()),
-                                            User = cl[3].Trim()
+                                            User = cl[3].Trim(),
+                                            SourceLogHistory = new List<SourceLogEntry.SourceLogHistoryEntry>()
                                         };
+
+                                        // after the first 4 columns is audit log
+                                        for (var i = 4; i + 2 < cl.Length; i+=3)
+                                        {
+                                            var he = new SourceLogEntry.SourceLogHistoryEntry()
+                                            {
+                                                Source = cl[i],
+                                                Updated = DateTime.Parse(cl[i + 1].Trim()),
+                                                User = cl[i + 2]
+                                            };
+                                            entry.SourceLogHistory.Add(he);
+                                        }
+
+
                                         dsl[entry.Field] = entry;
                                     }
                                     else
@@ -290,7 +305,8 @@ namespace NoCaml.UserProfiles
                                             Field = cl[0].Trim(),
                                             Source = cl[1].Trim(),
                                             Updated = DateTime.MinValue,
-                                            User = ""
+                                            User = "",
+                                            SourceLogHistory = new List<SourceLogEntry.SourceLogHistoryEntry>()
                                         };
                                         dsl[entry.Field] = entry;
                                     }
@@ -299,11 +315,38 @@ namespace NoCaml.UserProfiles
                             }
                             return dsl;
                         },
-                        v => string.Join(
-                            "\n",
-                            v.Select(kv =>  string.Format("{0}|{1}|{2:yyyy-MM-dd HH:mm}|{3}", kv.Value.Field, kv.Value.Source, kv.Value.Updated, kv.Value.User)
-                            ).ToArray()
-                            ));
+                        sl =>
+                        {
+                            // sourcelog must be less than 2000 chars
+
+                            Func<Dictionary<string, SourceLogEntry>, int, string> slts = (v, mh) => 
+                                string.Join(
+                                "\n",
+                                v.Select(kv => string.Format("{0}|{1}|{2:yyyy-MM-dd HH:mm}|{3}|{4}", kv.Value.Field, kv.Value.Source, kv.Value.Updated, kv.Value.User,
+                             string.Join("|", kv.Value.SourceLogHistory.Take(mh)
+                             .Select(he => string.Format("{0}|{1:yyyy-MM-dd HH:mm}|{2}", he.Source, he.Updated, he.User)).ToArray()
+                             )
+
+                             )
+                                ).ToArray()
+                                );
+
+                            // drop history if the log gets too long
+                            var result = slts(sl, 5);
+                            if (result.Length >= 2000) result = slts(sl, 4);
+                            if (result.Length >= 2000) result = slts(sl, 3);
+                            if (result.Length >= 2000) result = slts(sl, 2);
+                            if (result.Length >= 2000) result = slts(sl, 1);
+                            if (result.Length >= 2000) result = slts(sl, 0);
+                            if (result.Length >= 2000)
+                            {
+                                // there are other options to reduce the size here, but hopefully they won't be needed
+                                result = result.Substring(0, 2000);
+                            }
+                            return result;
+                        }
+                            
+                            );
 
 
 
@@ -409,7 +452,7 @@ namespace NoCaml.UserProfiles
                 AffectedAudiences = PropertyInfo.GetCustomAttributes(typeof(AudienceAttribute), false)
            .Cast<AudienceAttribute>().ToList();
                 ValidSources = PropertyInfo.GetCustomAttributes(false)
-                    .Where(a=>a is ProfilePropertySourceAttribute)
+                    .Where(a => a is ProfilePropertySourceAttribute)
                     .Cast<ProfilePropertySourceAttribute>().ToList();
             }
         }
@@ -461,17 +504,52 @@ namespace NoCaml.UserProfiles
             else return null;
         }
 
+        public bool HistoryRequired(string source)
+        {
+            // may add somthing to the attributes so that only user/admin changes get logged
+            return true;
+        }
+
         public void SetUpdated(string p, string source)
         {
-
-            var e = new SourceLogEntry()
+            SourceLogEntry e;
+            if (SourceLog.ContainsKey(p))
             {
-                Field = p,
-                Source = source,
-                Updated = DateTime.Now,
-                User = SPContext.Current != null && SPContext.Current.Web != null && SPContext.Current.Web.CurrentUser != null
-                ? SPContext.Current.Web.CurrentUser.LoginName : ""
-            };
+                e = SourceLog[p];
+
+                if (HistoryRequired(source))
+                {
+                    while (e.SourceLogHistory.Count > 5)
+                    {
+                        e.SourceLogHistory.RemoveAt(0);
+                    }
+
+                    e.SourceLogHistory.Add(new SourceLogEntry.SourceLogHistoryEntry()
+                    {
+                        Source = e.Source,
+                        Updated = e.Updated,
+                        User = e.User
+                    });
+
+                }
+
+
+            }
+            else
+            {
+                e = new SourceLogEntry()
+                {
+                    Field = p,
+                    SourceLogHistory = new List<SourceLogEntry.SourceLogHistoryEntry>()
+                };
+            }
+
+            e.Source = source;
+            e.Updated = DateTime.Now;
+            e.User = SPContext.Current != null && SPContext.Current.Web != null && SPContext.Current.Web.CurrentUser != null
+            ? SPContext.Current.Web.CurrentUser.LoginName : "";
+
+
             SourceLog[p] = e;
             ChangedProperties.Add(p);
             ChangedProperties.Add("SourceLog");
