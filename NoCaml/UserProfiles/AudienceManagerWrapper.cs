@@ -312,6 +312,9 @@ namespace NoCaml.UserProfiles
                 if (changed)
                 {
                     TAudience.GetMethod("Commit").Invoke(ea, new object[] { });
+                    
+                    // This will run before the standard compilation cleans up any stalled jobs.
+                    // However, changes don't happen often enough for this to matter.
                     CompileAudience(na.Name, true);
                 }
 
@@ -369,12 +372,29 @@ namespace NoCaml.UserProfiles
             return typeof(SPContext).Assembly.GetName().Version.Major >= 14;
         }
 
-        public void CompileAudience(string name, bool fullcompile)
+
+        
+        /// <summary>
+        /// Returns true if the compile succeeded
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="fullcompile"></param>
+        /// <returns></returns>
+        public bool CompileAudience(string name, bool fullcompile)
         {
-            TAudienceJob.GetMethod("RunAudienceJob").Invoke(null, new object[] { new string[] { Is2010() ? GetAudienceJobAppId2010() : GetAudienceJobAppId2007(), "1", fullcompile ? "1" : "0", name } });
+            
+            var result = (int)TAudienceJob.GetMethod("RunAudienceJob").Invoke(null, new object[] { new string[] { Is2010() ? GetAudienceJobAppId2010() : GetAudienceJobAppId2007(), "1", fullcompile ? "1" : "0", name } });
+
+            return result == 0; //AUDIENCEJOB_JOBRUN
         }
 
+        public bool StopAudienceCompilation()
+        {
 
+            var result = (int)TAudienceJob.GetMethod("RunAudienceJob").Invoke(null, new object[] { new string[] { Is2010() ? GetAudienceJobAppId2010() : GetAudienceJobAppId2007(), "0", "0", null } });
+
+            return result == 0; //AUDIENCEJOB_JOBRUN
+        }
 
 
     }

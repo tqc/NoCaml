@@ -126,15 +126,41 @@ namespace NoCaml.UserProfiles
                 {
                     try
                     {
-
                         var an = ChangedAudiences.Pop();
                         if (an == null) break;
                         if (am == null) am = new AudienceManagerWrapper(site);
-                        am.CompileAudience(an, false);
+                        var compiled = am.CompileAudience(an, false);
+
+                        if (!compiled)
+                        {
+                            // something went wrong with the compilation.
+                            // most likely another job running
+                            if (max > 100)
+                            {
+                                // compiling many audiences indicates a timer job. 
+                                // stop the previous compilation and try again.
+                                am.StopAudienceCompilation();
+                                compiled = am.CompileAudience(an, false);
+                                // if stopping the job didn't help, move on. The audience
+                                // will be updated by the oob daily compile.
+
+                            }
+                            else
+                            {
+                                // this is the realtime update. add the audience back in the queue 
+                                // and leave compilation to run after the error is resolved.
+                                ChangedAudiences.Push(an);
+                                break;
+
+                            }
+
+
+                        }
 
                     }
                     catch (Exception ex)
                     {
+
                         // no logging available here, but errors in individual audiences are probably logged elsewhere.
                         // ignore the error and move on to the next audience
                     }
