@@ -351,8 +351,7 @@ namespace NoCaml.UserProfiles
             return false;
         }
 
-
-        private bool ShouldUpdateInBatch(TProfile p)
+private bool ShouldUpdateInBatch(TProfile p)
         {
             if (!IsValidProfile(p)) return false;
             if (SpreadUpdateProfileCount == int.MaxValue) return true;
@@ -361,6 +360,26 @@ namespace NoCaml.UserProfiles
 
             return false;
         }
+
+        
+protected virtual bool ShouldExport(TProfile p)
+{
+            if (!IsValidProfile(p)) return false;
+    
+            return true;
+        }
+
+
+        protected virtual void AddExportRow(TProfile p) {
+            
+
+        }
+
+        protected virtual void WriteExportFile()
+        {
+
+        }
+
 
         protected virtual bool ShouldUpdateInSecondaryUpdate(TProfile p)
         {
@@ -447,6 +466,9 @@ namespace NoCaml.UserProfiles
 
             var activeLoaders = pdls.Where(pdl => pdl.LoaderInitialized && (pdl.BulkDataAvailable || pdl.SpreadUpdateProfileCount > 0)).ToList();
 
+            var activeExporters = pdls.Where(pdl => pdl.LoaderInitialized).ToList();
+
+
             profiles.EachParallel(p =>
             {
                 bool updated = false;
@@ -479,7 +501,20 @@ namespace NoCaml.UserProfiles
                         }
                     }
 
+
+                   
+
                 }
+
+
+                foreach (var pdl in activeExporters)
+                {
+                    if (pdl.ShouldExport(p))
+                    {
+                        pdl.AddExportRow(p);
+                    }
+                }
+
                 if (updated)
                 {
                     try
@@ -542,6 +577,13 @@ namespace NoCaml.UserProfiles
                     }
 
                 });
+
+
+                foreach (var pdl in activeExporters)
+                {
+                    // save export file if necessary
+                    pdl.WriteExportFile();
+                }
 
             }
 
