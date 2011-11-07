@@ -509,9 +509,16 @@ protected virtual bool ShouldExport(TProfile p)
 
                 foreach (var pdl in activeExporters)
                 {
+                    try
+                    {
                     if (pdl.ShouldExport(p))
                     {
                         pdl.AddExportRow(p);
+                    }
+                     }
+                    catch (Exception ex)
+                    {
+                        LogException(pdl.SourceName + " Exporting:" + p.LanID, ex);
                     }
                 }
 
