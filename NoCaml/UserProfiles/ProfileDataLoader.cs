@@ -351,7 +351,7 @@ namespace NoCaml.UserProfiles
             return false;
         }
 
-private bool ShouldUpdateInBatch(TProfile p)
+        private bool ShouldUpdateInBatch(TProfile p)
         {
             if (!IsValidProfile(p)) return false;
             if (SpreadUpdateProfileCount == int.MaxValue) return true;
@@ -361,17 +361,18 @@ private bool ShouldUpdateInBatch(TProfile p)
             return false;
         }
 
-        
-protected virtual bool ShouldExport(TProfile p)
-{
+
+        protected virtual bool ShouldExport(TProfile p)
+        {
             if (!IsValidProfile(p)) return false;
-    
+
             return true;
         }
 
 
-        protected virtual void AddExportRow(TProfile p) {
-            
+        protected virtual void AddExportRow(TProfile p)
+        {
+
 
         }
 
@@ -502,7 +503,7 @@ protected virtual bool ShouldExport(TProfile p)
                     }
 
 
-                   
+
 
                 }
 
@@ -511,11 +512,11 @@ protected virtual bool ShouldExport(TProfile p)
                 {
                     try
                     {
-                    if (pdl.ShouldExport(p))
-                    {
-                        pdl.AddExportRow(p);
+                        if (pdl.ShouldExport(p))
+                        {
+                            pdl.AddExportRow(p);
+                        }
                     }
-                     }
                     catch (Exception ex)
                     {
                         LogException(pdl.SourceName + " Exporting:" + p.LanID, ex);
@@ -584,15 +585,22 @@ protected virtual bool ShouldExport(TProfile p)
                     }
 
                 });
+            }
 
-
-                foreach (var pdl in activeExporters)
+            foreach (var pdl in activeExporters)
+            {
+                try
                 {
                     // save export file if necessary
                     pdl.WriteExportFile();
                 }
-
+                catch (Exception ex)
+                {
+                    LogException("Saving Export File (" + pdl.SourceName + ")", ex);
+                }
             }
+
+
 
         }
 
