@@ -117,6 +117,7 @@
     <Compile Include="UserProfiles\AudienceAttribute.cs" />
     <Compile Include="UserProfiles\AudienceManagerWrapper.cs" />
     <Compile Include="UserProfiles\AudienceWrapper.cs" />
+    <Compile Include="UserProfiles\ProfilePropertyIndexAttribute.cs" />
     <Compile Include="UserProfiles\IProfile.cs" />
     <Compile Include="UserProfiles\ProfileBase.cs" />
     <Compile Include="UserProfiles\ProfileDataLoader.cs" />
@@ -161,7 +162,7 @@
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties BuildVersion_UpdateFileVersion="True" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_UseGlobalSettings="False" />
+      <UserProperties BuildVersion_UseGlobalSettings="False" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateFileVersion="True" />
     </VisualStudio>
   </ProjectExtensions>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

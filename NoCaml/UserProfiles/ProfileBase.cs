@@ -202,6 +202,13 @@ namespace NoCaml.UserProfiles
         // TODO: this needs to be set to false if the elevated context will be disposed before the record is saved.
         public bool ContextProfileValid { get; set; }
 
+        /// <summary>
+        /// true if the object is fully loaded from a profile. 
+        /// false if it is partially loaded from search results
+        /// </summary>
+        public bool FullyLoaded { get; set; }
+
+
         public abstract void EnsureCustomPropertiesExist();
 
         private static object syncRoot = new object();
@@ -241,6 +248,7 @@ namespace NoCaml.UserProfiles
         }
 
         protected static Dictionary<string, Func<UserProfileValueCollectionWrapper, object>> LoadFunctions { get; set; }
+        protected static Dictionary<string, Func<string, object>> PartialLoadFunctions { get; set; }
         protected static Dictionary<string, Func<object, object>> SaveFunctions { get; set; }
 
 
@@ -249,6 +257,7 @@ namespace NoCaml.UserProfiles
         protected void RegisterCustomPropertyLoader<TProfile, T>(
             Expression<Func<TProfile, T>> propfunc,
             Func<UserProfileValueCollectionWrapper, T> loadfunc,
+            Func<string, T> partialLoadFunc,
             Func<T, object> savefunc
             )
         {
@@ -257,10 +266,30 @@ namespace NoCaml.UserProfiles
             if (propfunc.Body.NodeType == ExpressionType.Convert) n = ((UnaryExpression)propfunc.Body).Operand as MemberExpression;
             var pi = n.Member as PropertyInfo;
 
+            RegisterCustomPropertyLoader<TProfile, T>(pi.Name, loadfunc, partialLoadFunc, savefunc);
 
-            LoadFunctions[pi.Name] = upvc => loadfunc(upvc);
-            SaveFunctions[pi.Name] = o => savefunc((T)o);
 
+        }
+
+        protected void RegisterCustomPropertyLoader<TProfile, T>(
+        string propname,
+        Func<UserProfileValueCollectionWrapper, T> loadfunc,
+        Func<string, T> partialLoadFunc,
+        Func<T, object> savefunc
+        )
+        {
+             if (loadfunc != null)
+            {
+                LoadFunctions[propname] = upvc => loadfunc(upvc);
+            }
+            if (partialLoadFunc != null)
+            {
+                PartialLoadFunctions[propname] = s => partialLoadFunc(s);
+            }
+            if (savefunc != null)
+            {
+                SaveFunctions[propname] = o => savefunc((T)o);
+            }
 
         }
 
@@ -274,6 +303,7 @@ namespace NoCaml.UserProfiles
             {
                 if (LoadSaveFunctionsRegistered) { return; }
                 LoadFunctions = new Dictionary<string, Func<UserProfileValueCollectionWrapper, object>>();
+                PartialLoadFunctions = new Dictionary<string, Func<string, object>>();
                 SaveFunctions = new Dictionary<string, Func<object, object>>();
 
                 RegisterCustomPropertyLoader<ProfileBase, Dictionary<string, SourceLogEntry>>(p => p.SourceLog,
@@ -341,6 +371,7 @@ namespace NoCaml.UserProfiles
                             }
                             return dsl;
                         },
+                        null,
                         sl =>
                         {
                             // sourcelog must be less than 2000 chars
@@ -397,6 +428,7 @@ namespace NoCaml.UserProfiles
                 }
                 return dsl;
             },
+            null,
             v => string.Join(
                 "\n",
                 v.Select(kv => kv.Key + ":" + kv.Value).ToArray()
@@ -418,8 +450,17 @@ namespace NoCaml.UserProfiles
         private class PropertyAction
         {
             public PropertyInfo PropertyInfo;
+            /// <summary>
+            /// Property name as stored in the user profile
+            /// </summary>
             public string DataPropertyName;
+            
+/// <summary>
+/// Managed property name in the search index
+/// </summary>
+            public string SearchPropertyName { get; set; }
             public Action<UserProfileWrapper, ProfileBase> LoadAction;
+            public Action<string, ProfileBase> PartialLoadAction;
             public Action<ProfileBase> SaveAction;
             public List<AudienceAttribute> AffectedAudiences;
             public List<ProfilePropertySourceAttribute> ValidSources;
@@ -465,6 +506,17 @@ namespace NoCaml.UserProfiles
                         LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, source[DataPropertyName].Value, null));
                     }
 
+
+                if (PartialLoadFunctions.ContainsKey(PropertyInfo.Name))
+                {
+                    PartialLoadAction = ((source, dest) => PropertyInfo.SetValue(dest, PartialLoadFunctions[PropertyInfo.Name](source), null));
+                }
+                else
+                {
+                    PartialLoadAction = null;
+                }
+
+
                 // property needs saving - check for a custom save function
                 if (SaveFunctions.ContainsKey(PropertyInfo.Name))
                 {
@@ -481,6 +533,7 @@ namespace NoCaml.UserProfiles
                     .Where(a => a is ProfilePropertySourceAttribute)
                     .Cast<ProfilePropertySourceAttribute>().ToList();
             }
+
         }
 
         private void RegisterAllLoadFunctions()
@@ -500,6 +553,52 @@ namespace NoCaml.UserProfiles
             }
         }
 
+        protected ProfileBase(SPSite site, Dictionary<string, string> searchResult)
+            : this()
+        {
+
+            Site = site;
+            Profile = null;
+            UserProfileManager = null;
+            ContextProfileValid = false;
+            FullyLoaded = false;
+
+            RegisterLoadSaveFunctions();
+
+            LanID = searchResult["AccountName"];
+
+            foreach (var a in AllLoadFunctions)
+            {
+                if (!string.IsNullOrEmpty(a.SearchPropertyName) 
+                    && searchResult.ContainsKey(a.SearchPropertyName)
+                    && a.PartialLoadAction != null
+                    ) 
+                {                   
+                    a.PartialLoadAction(searchResult[a.SearchPropertyName], this);                
+                }
+            }
+        }
+
+        /// <summary>
+        /// Load unindexed properties 
+        /// </summary>
+        protected void LoadFullProfile()
+        {
+            UserProfileManager = new UserProfileManagerWrapper(Site);
+            Profile = UserProfileManager.GetUserProfile(LanID);
+            
+         
+            // load properties that have a known source
+            foreach (var a in AllLoadFunctions)
+            {
+                a.LoadAction(Profile, this);
+            }
+
+            FullyLoaded = true;
+            ContextProfileValid = true;
+
+        }
+
         protected ProfileBase(SPSite site, UserProfileWrapper profile)
             : this()
         {
@@ -507,7 +606,7 @@ namespace NoCaml.UserProfiles
             Profile = profile;
             UserProfileManager = profile.ProfileManager;
             ContextProfileValid = true;
-
+            FullyLoaded = true;
             EnsurePropertiesExist();
 
             RegisterLoadSaveFunctions();
