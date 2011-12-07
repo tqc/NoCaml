@@ -466,11 +466,11 @@ namespace NoCaml.UserProfiles
             public List<ProfilePropertySourceAttribute> ValidSources;
 
 
-            public PropertyAction(PropertyInfo pi, ProfilePropertyStorageAttribute psa)
+            public PropertyAction(PropertyInfo pi, ProfilePropertyStorageAttribute psa,ProfilePropertyIndexAttribute pia)
             {
                 PropertyInfo = pi;
                 DataPropertyName = psa.PropertyName;
-
+                SearchPropertyName = pia == null ? null : pia.ManagedPropertyName;
                 // property needs loading - check for a custom load function
                 if (LoadFunctions.ContainsKey(PropertyInfo.Name))
                 {
@@ -506,16 +506,21 @@ namespace NoCaml.UserProfiles
                         LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, source[DataPropertyName].Value, null));
                     }
 
-
-                if (PartialLoadFunctions.ContainsKey(PropertyInfo.Name))
+                if (pia != null)
                 {
-                    PartialLoadAction = ((source, dest) => PropertyInfo.SetValue(dest, PartialLoadFunctions[PropertyInfo.Name](source), null));
+                    if (PartialLoadFunctions.ContainsKey(PropertyInfo.Name))
+                    {
+                        PartialLoadAction = ((source, dest) => PropertyInfo.SetValue(dest, PartialLoadFunctions[PropertyInfo.Name](source), null));
+                    }
+                    else
+                    {
+                        PartialLoadAction = ((source, dest) => PropertyInfo.SetValue(dest, source, null));
+                    }
                 }
                 else
                 {
                     PartialLoadAction = null;
                 }
-
 
                 // property needs saving - check for a custom save function
                 if (SaveFunctions.ContainsKey(PropertyInfo.Name))
@@ -547,9 +552,10 @@ namespace NoCaml.UserProfiles
                 // no need to find a load function for a read only property
                 if (!p.CanWrite) continue;
                 var psa = (ProfilePropertyStorageAttribute)p.GetCustomAttributes(typeof(ProfilePropertyStorageAttribute), true).FirstOrDefault();
+                var pia = (ProfilePropertyIndexAttribute)p.GetCustomAttributes(typeof(ProfilePropertyIndexAttribute), true).FirstOrDefault();
                 // only need to load properties that are stored
                 if (psa == null) continue;
-                AllLoadFunctions.Add(new PropertyAction(p, psa));
+                AllLoadFunctions.Add(new PropertyAction(p, psa, pia));
             }
         }
 
