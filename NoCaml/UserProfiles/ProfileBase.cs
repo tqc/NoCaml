@@ -207,7 +207,7 @@ namespace NoCaml.UserProfiles
         /// false if it is partially loaded from search results
         /// </summary>
         public bool FullyLoaded { get; set; }
-
+        protected List<string> LoadedProperties { get; set; }
 
         public abstract void EnsureCustomPropertiesExist();
 
@@ -562,7 +562,7 @@ namespace NoCaml.UserProfiles
             UserProfileManager = null;
             ContextProfileValid = false;
             FullyLoaded = false;
-
+            LoadedProperties = new List<string>();
             RegisterLoadSaveFunctions();
 
             LanID = searchResult["AccountName"];
@@ -573,7 +573,8 @@ namespace NoCaml.UserProfiles
                     && searchResult.ContainsKey(a.SearchPropertyName)
                     && a.PartialLoadAction != null
                     ) 
-                {                   
+                {
+                    LoadedProperties.Add(a.PropertyInfo.Name);
                     a.PartialLoadAction(searchResult[a.SearchPropertyName], this);                
                 }
             }
