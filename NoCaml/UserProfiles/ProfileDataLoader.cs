@@ -7,7 +7,7 @@ using System.Reflection;
 
 namespace NoCaml.UserProfiles
 {
-    public abstract class ProfileDataLoader<TProfile, TSource> : ProfileDataLoader<TProfile> where TProfile : ProfileBase
+    public abstract class ProfileDataLoader<TProfile, TSource> : ProfileDataLoader<TProfile> where TProfile : IProfile
     {
 
         public Dictionary<Expression<Func<TProfile, object>>, Func<TProfile, TSource, object>> Mappings { get; set; }
@@ -221,10 +221,149 @@ namespace NoCaml.UserProfiles
         }
     }
 
-    public abstract class ProfileDataLoader<TProfile> where TProfile : ProfileBase
+    public abstract class ProfileDataLoader<TProfile> : ProfileDataLoader where TProfile : IProfile
+    {
+
+      
+
+        /// <summary>
+        /// For sources where validity is dependent on other properties, allow filtering of the profile list 
+        /// so that updates expected to fail do not run
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        public virtual bool IsValidProfile(TProfile p)
+        {
+            return base.IsValidProfile((IProfile)p);
+        }
+        public sealed override bool IsValidProfile(IProfile p)
+        {
+            return IsValidProfile((TProfile)p);
+        }
+
+        /// <summary>
+        /// Update an individual profile with no other data available - generally by calling a web service.        
+        /// Return true if the profile should be recorded as updated sucessfully
+        /// </summary>
+        /// <param name="p"></param>
+        protected virtual bool UpdateProfileRealTime(TProfile p)
+        {
+            return base.UpdateProfileRealTime((IProfile)p);
+        }
+        protected sealed override bool UpdateProfileRealTime(IProfile p)
+        {
+            return UpdateProfileRealTime((TProfile)p);
+        }
+
+
+        /// <summary>
+        /// Update an individual profile from data loaded with LoadBulkData
+        /// Return true if the profile should be recorded as updated sucessfully
+        /// </summary>
+        /// <param name="p"></param>
+        protected virtual bool UpdateProfileBatch(TProfile p)
+        {
+            return base.UpdateProfileBatch((IProfile)p);
+        }
+        protected sealed override bool UpdateProfileBatch(IProfile p)
+        {
+            return UpdateProfileBatch((TProfile)p);
+        }
+
+        /// <summary>
+        /// Secondary update - apply changes that require all profiles to be processed previously
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        protected virtual bool UpdateProfileSecondary(TProfile p)
+        {
+            return base.UpdateProfileSecondary((IProfile)p);
+        }
+        protected sealed override bool UpdateProfileSecondary(IProfile p)
+        {
+            return UpdateProfileSecondary((TProfile)p);
+        }
+
+
+        /// <summary>
+        /// return true if this profile is in the import file
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        protected virtual bool BulkDataContains(TProfile p)
+        {
+            return base.BulkDataContains((IProfile)p); 
+        }
+        protected sealed override bool BulkDataContains(IProfile p)
+        {
+            return BulkDataContains((TProfile)p);
+        }
+
+        /// <summary>
+        /// return true if this profile may have been in the import previously so should be updated
+        /// even if it is no longer present. This may overlap with BulkDataContains - it is used only
+        /// for choosing records to be updated.
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        protected virtual bool BulkDataUsedToContain(TProfile p)
+        {
+            return base.BulkDataUsedToContain((IProfile)p);
+        }
+        protected sealed override bool BulkDataUsedToContain(IProfile p)
+        {
+            return BulkDataUsedToContain((TProfile)p);
+        }
+              
+        protected virtual bool ShouldExport(TProfile p)
+        {
+            return base.ShouldExport((IProfile)p);
+        }
+        protected sealed override bool ShouldExport(IProfile p)
+        {
+            return ShouldExport((TProfile)p);
+        }
+
+
+        protected virtual void AddExportRow(TProfile p)
+        {
+            base.AddExportRow((IProfile)p);
+
+        }
+        protected sealed override void AddExportRow(IProfile p)
+        {
+            AddExportRow((TProfile)p);
+        }
+ 
+        protected virtual bool ShouldUpdateInSecondaryUpdate(TProfile p)
+        {
+            return base.ShouldUpdateInSecondaryUpdate((IProfile)p);
+        }
+        protected sealed override bool ShouldUpdateInSecondaryUpdate(IProfile p)
+        {
+            return ShouldUpdateInSecondaryUpdate((TProfile)p);
+        }
+ 
+
+    }
+
+
+    public abstract class ProfileDataLoader
     {
         public string SourceName { get; protected set; }
 
+
+
+        /// <summary>
+        /// For batch updates, load necessary data. Returns true if bulk data is available, false if
+        /// individual updates are required.
+        /// </summary>
+        public virtual bool LoadBulkData()
+        {
+            return false;
+        }
+
+        private string[] ProfilesToUpdate { get; set; }
 
         /// <summary>
         /// Expiry time in seconds for real time updates. Default is 10 minutes.
@@ -249,148 +388,13 @@ namespace NoCaml.UserProfiles
         }
 
 
-
-        /// <summary>
-        /// For sources where validity is dependent on other properties, allow filtering of the profile list 
-        /// so that updates expected to fail do not run
-        /// </summary>
-        /// <param name="p"></param>
-        /// <returns></returns>
-        public virtual bool IsValidProfile(TProfile p)
-        {
-            return true;
-        }
-
-
-        /// <summary>
-        /// Update an individual profile with no other data available - generally by calling a web service.        
-        /// Return true if the profile should be recorded as updated sucessfully
-        /// </summary>
-        /// <param name="p"></param>
-        protected virtual bool UpdateProfileRealTime(TProfile p)
-        {
-            return false;
-        }
-
-        /// <summary>
-        /// Update an individual profile from data loaded with LoadBulkData
-        /// Return true if the profile should be recorded as updated sucessfully
-        /// </summary>
-        /// <param name="p"></param>
-        protected virtual bool UpdateProfileBatch(TProfile p)
-        {
-            return false;
-        }
-
-        /// <summary>
-        /// Secondary update - apply changes that require all profiles to be processed previously
-        /// </summary>
-        /// <param name="p"></param>
-        /// <returns></returns>
-        protected virtual bool UpdateProfileSecondary(TProfile p)
-        {
-            return false;
-        }
-
-
         public static Action<string, string, string> Log { get; set; }
-
-        /// <summary>
-        /// For batch updates, load necessary data. Returns true if bulk data is available, false if
-        /// individual updates are required.
-        /// </summary>
-        public virtual bool LoadBulkData()
-        {
-            return false;
-        }
-
-        private string[] ProfilesToUpdate { get; set; }
-
-        private string[] SelectProfilesToUpdate(IEnumerable<TProfile> profiles)
-        {
-            var rnd = new Random();
-            if (SpreadUpdateProfileCount == 0) return null;
-            if (SpreadUpdateProfileCount == int.MaxValue) return null;
-
-            var result = profiles
-    .Where(p => IsValidProfile(p))
-    .Where(p => !InProcUpdates.ContainsKey(SourceName + "|" + p.LanID) || InProcUpdates[SourceName + "|" + p.LanID] < DateTime.Now.AddSeconds(-RealTimeUpdateExpiry))
-    .OrderBy(p => rnd.Next())
-    .Take(SpreadUpdateProfileCount)
-    .Select(p => p.LanID.ToLower())
-    .ToArray();
-
-            foreach (var p in result)
-            {
-                // updating here to avoid potential issues updating on 64 threads simultaneously
-                InProcUpdates[SourceName + "|" + p] = DateTime.Now;
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// return true if this profile is in the import file
-        /// </summary>
-        /// <param name="p"></param>
-        /// <returns></returns>
-        protected virtual bool BulkDataContains(TProfile p)
-        {
-            return false;
-        }
-
-        /// <summary>
-        /// return true if this profile may have been in the import previously so should be updated
-        /// even if it is no longer present. This may overlap with BulkDataContains - it is used only
-        /// for choosing records to be updated.
-        /// </summary>
-        /// <param name="p"></param>
-        /// <returns></returns>
-        protected virtual bool BulkDataUsedToContain(TProfile p)
-        {
-            return false;
-        }
-
-        private bool ShouldUpdateInBatch(TProfile p)
-        {
-            if (!IsValidProfile(p)) return false;
-            if (SpreadUpdateProfileCount == int.MaxValue) return true;
-            if (BulkDataAvailable) return BulkDataContains(p) || BulkDataUsedToContain(p);
-            if (ProfilesToUpdate != null && ProfilesToUpdate.Length > 0) return ProfilesToUpdate.Contains(p.LanID.ToLower());
-
-            return false;
-        }
-
-
-        protected virtual bool ShouldExport(TProfile p)
-        {
-            if (!IsValidProfile(p)) return false;
-
-            return true;
-        }
-
-
-        protected virtual void AddExportRow(TProfile p)
-        {
-
-
-        }
 
         protected virtual void WriteExportFile()
         {
 
         }
 
-
-        protected virtual bool ShouldUpdateInSecondaryUpdate(TProfile p)
-        {
-            return false;
-        }
-
-        public virtual bool SecondaryUpdateRequired()
-        {
-            return false;
-        }
 
 
         private static void LogException(string source, Exception ex)
@@ -408,7 +412,7 @@ namespace NoCaml.UserProfiles
             }
 
         }
-        public static void RunRealtimeUpdate(IEnumerable<ProfileDataLoader<TProfile>> pdls, TProfile profile)
+        public static void RunRealtimeUpdate(IEnumerable<ProfileDataLoader> pdls, IProfile profile)
         {
             foreach (var pdl in pdls)
             {
@@ -431,21 +435,7 @@ namespace NoCaml.UserProfiles
             }
         }
 
-
-        private object StatSync = new object();
-        //public int InitializationTime;
-        ///public int UpdateTime;
-        public int ProfilesChecked;
-        public int ProfilesUpdated;
-        public int ProfilesCheckedInSecondaryUpdate;
-        public int ProfilesUpdatedInSecondaryUpdate;
-
-
-        private bool LoaderInitialized = false;
-        private bool BulkDataAvailable = false;
-
-
-        public static void RunBatchUpdate(IEnumerable<ProfileDataLoader<TProfile>> pdls, IEnumerable<TProfile> profiles)
+        public static void RunBatchUpdate(IEnumerable<ProfileDataLoader> pdls, IEnumerable<IProfile> profiles)
         {
             // initialize each loader
 
@@ -604,5 +594,171 @@ namespace NoCaml.UserProfiles
 
         }
 
+
+        public virtual bool SecondaryUpdateRequired()
+        {
+            return false;
+        }
+
+
+
+
+        private object StatSync = new object();
+        //public int InitializationTime;
+        ///public int UpdateTime;
+        public int ProfilesChecked;
+        public int ProfilesUpdated;
+        public int ProfilesCheckedInSecondaryUpdate;
+        public int ProfilesUpdatedInSecondaryUpdate;
+
+
+        private bool LoaderInitialized = false;
+        private bool BulkDataAvailable = false;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /// <summary>
+        /// For sources where validity is dependent on other properties, allow filtering of the profile list 
+        /// so that updates expected to fail do not run
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        public virtual bool IsValidProfile(IProfile p)
+        {
+            return true;
+        }
+
+
+        /// <summary>
+        /// Update an individual profile with no other data available - generally by calling a web service.        
+        /// Return true if the profile should be recorded as updated sucessfully
+        /// </summary>
+        /// <param name="p"></param>
+        protected virtual bool UpdateProfileRealTime(IProfile p)
+        {
+            return false;
+        }
+
+        /// <summary>
+        /// Update an individual profile from data loaded with LoadBulkData
+        /// Return true if the profile should be recorded as updated sucessfully
+        /// </summary>
+        /// <param name="p"></param>
+        protected virtual bool UpdateProfileBatch(IProfile p)
+        {
+            return false;
+        }
+
+        /// <summary>
+        /// Secondary update - apply changes that require all profiles to be processed previously
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        protected virtual bool UpdateProfileSecondary(IProfile p)
+        {
+            return false;
+        }
+
+
+        private string[] SelectProfilesToUpdate(IEnumerable<IProfile> profiles)
+        {
+            var rnd = new Random();
+            if (SpreadUpdateProfileCount == 0) return null;
+            if (SpreadUpdateProfileCount == int.MaxValue) return null;
+
+            var result = profiles
+    .Where(p => IsValidProfile(p))
+    .Where(p => !InProcUpdates.ContainsKey(SourceName + "|" + p.LanID) || InProcUpdates[SourceName + "|" + p.LanID] < DateTime.Now.AddSeconds(-RealTimeUpdateExpiry))
+    .OrderBy(p => rnd.Next())
+    .Take(SpreadUpdateProfileCount)
+    .Select(p => p.LanID.ToLower())
+    .ToArray();
+
+            foreach (var p in result)
+            {
+                // updating here to avoid potential issues updating on 64 threads simultaneously
+                InProcUpdates[SourceName + "|" + p] = DateTime.Now;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// return true if this profile is in the import file
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        protected virtual bool BulkDataContains(IProfile p)
+        {
+            return false;
+        }
+
+        /// <summary>
+        /// return true if this profile may have been in the import previously so should be updated
+        /// even if it is no longer present. This may overlap with BulkDataContains - it is used only
+        /// for choosing records to be updated.
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        protected virtual bool BulkDataUsedToContain(IProfile p)
+        {
+            return false;
+        }
+
+        private bool ShouldUpdateInBatch(IProfile p)
+        {
+            if (!IsValidProfile(p)) return false;
+            if (SpreadUpdateProfileCount == int.MaxValue) return true;
+            if (BulkDataAvailable) return BulkDataContains(p) || BulkDataUsedToContain(p);
+            if (ProfilesToUpdate != null && ProfilesToUpdate.Length > 0) return ProfilesToUpdate.Contains(p.LanID.ToLower());
+
+            return false;
+        }
+
+
+        protected virtual bool ShouldExport(IProfile p)
+        {
+            if (!IsValidProfile(p)) return false;
+
+            return true;
+        }
+
+       
+
+        protected virtual void AddExportRow(IProfile p)
+        {
+
+
+        }
+
+
+        protected virtual bool ShouldUpdateInSecondaryUpdate(IProfile p)
+        {
+            return false;
+        }
+
+ 
+
+
+
+
+
     }
+
 }

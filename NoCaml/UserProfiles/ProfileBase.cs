@@ -14,7 +14,7 @@ namespace NoCaml.UserProfiles
     /// <summary>
     /// Base class for strongly typed user profile
     /// </summary>
-    public abstract class ProfileBase
+    public abstract class ProfileBase : IProfile
     {
 
         protected ProfileBase()
@@ -240,8 +240,8 @@ namespace NoCaml.UserProfiles
             }
         }
 
-        private static Dictionary<string, Func<UserProfileValueCollectionWrapper, object>> LoadFunctions { get; set; }
-        private static Dictionary<string, Func<object, object>> SaveFunctions { get; set; }
+        protected static Dictionary<string, Func<UserProfileValueCollectionWrapper, object>> LoadFunctions { get; set; }
+        protected static Dictionary<string, Func<object, object>> SaveFunctions { get; set; }
 
 
         protected abstract void RegisterCustomLoadSaveFunctions();
@@ -524,7 +524,7 @@ namespace NoCaml.UserProfiles
         }
 
 
-        internal string GetCurrentSource(string p)
+        public string GetCurrentSource(string p)
         {
             if (SourceLog.ContainsKey(p)) return SourceLog[p].Source;
             else return null;
@@ -602,7 +602,7 @@ namespace NoCaml.UserProfiles
 
         }
 
-        internal bool ImportedPropertyChanged(string p, string newvalue)
+        public bool ImportedPropertyChanged(string p, string newvalue)
         {
 
             var newhash = GetHash(newvalue);
