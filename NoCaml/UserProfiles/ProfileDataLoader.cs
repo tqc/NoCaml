@@ -17,8 +17,21 @@ namespace NoCaml.UserProfiles
         /// </summary>
         public Dictionary<Expression<Func<TProfile, object>>, Func<TProfile, TSource, object>> NullableMappings { get; set; }
 
+
+        /// <summary>
+        /// Mappings that will be executed only in the secondary update
+        /// </summary>
+        public Dictionary<Expression<Func<TProfile, object>>, Func<TProfile, TSource, object>> DelayedMappings { get; set; }
+
+        /// <summary>
+        /// Mappings that will be executed only in the secondary update even if source is null
+        /// </summary>
+        public Dictionary<Expression<Func<TProfile, object>>, Func<TProfile, TSource, object>> DelayedNullableMappings { get; set; }
+
         protected ProfileDataLoader()
         {
+            DelayedMappings = new Dictionary<Expression<Func<TProfile, object>>, Func<TProfile, TSource, object>>();
+            DelayedNullableMappings = new Dictionary<Expression<Func<TProfile, object>>, Func<TProfile, TSource, object>>();
             NullableMappings = new Dictionary<Expression<Func<TProfile, object>>, Func<TProfile, TSource, object>>();
             Mappings = new Dictionary<Expression<Func<TProfile, object>>, Func<TProfile, TSource, object>>();
         }
@@ -30,10 +43,11 @@ namespace NoCaml.UserProfiles
             public bool RaisePriorityOnChange { get; set; }
             public bool UseIfNull { get; set; }
             public bool UpdateForNullSource { get; set; }
+            public bool RunInSecondaryUpdate { get; set; }
             public Func<TProfile, TSource, object> ValueFunction { get; set; }
             public bool IsValid { get; set; }
 
-            public LoadablePropertyDetails(Expression<Func<TProfile, object>> expr, Func<TProfile, TSource, object> val, string sourceName, bool updateForNullSource)
+            public LoadablePropertyDetails(Expression<Func<TProfile, object>> expr, Func<TProfile, TSource, object> val, string sourceName, bool updateForNullSource, bool runInSecondaryUpdate)
             {
                 IsValid = true;
                 var n = expr.Body as MemberExpression;
@@ -51,6 +65,7 @@ namespace NoCaml.UserProfiles
                     RaisePriorityOnChange = sa.RaisePriorityIfChanged;
                     UseIfNull = sa.UseIfEmpty;
                     UpdateForNullSource = updateForNullSource;
+                    RunInSecondaryUpdate = runInSecondaryUpdate;
                     ValueFunction = val;
                 }
             }
@@ -64,13 +79,25 @@ namespace NoCaml.UserProfiles
             var pc = new Dictionary<string, LoadablePropertyDetails>();
             foreach (var kv in Mappings)
             {
-                var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, false);
+                var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, false, false);
                 if (lpd.IsValid) pc.Add(lpd.PropertyInfo.Name, lpd);
             }
 
             foreach (var kv in NullableMappings)
             {
-                var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, true);
+                var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, true, false);
+                if (lpd.IsValid) pc.Add(lpd.PropertyInfo.Name, lpd);
+            }
+
+            foreach (var kv in DelayedMappings)
+            {
+                var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, false, true);
+                if (lpd.IsValid) pc.Add(lpd.PropertyInfo.Name, lpd);
+            }
+
+            foreach (var kv in DelayedNullableMappings)
+            {
+                var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, false, true);
                 if (lpd.IsValid) pc.Add(lpd.PropertyInfo.Name, lpd);
             }
             // done this way to avoid modified collection exceptions - PropertyCache is supposed to be either
@@ -180,8 +207,12 @@ namespace NoCaml.UserProfiles
 
         }
 
+                public void UpdateProfile(TProfile profile, TSource source)
+        {
+            UpdateProfile(profile, source, false);
+        }
 
-        public void UpdateProfile(TProfile profile, TSource source)
+        public void UpdateProfile(TProfile profile, TSource source, bool isSecondaryUpdate)
         {
             // this bit really belongs in the constructor, but it has to be called after the 
             // subclass constructor completes.
@@ -195,7 +226,7 @@ namespace NoCaml.UserProfiles
                     }
                 }
             }
-            foreach (var kv in PropertyCache)
+            foreach (var kv in PropertyCache.Where(o=>o.Value.RunInSecondaryUpdate == isSecondaryUpdate))
             {
                 UpdateProperty(profile, source, kv.Value);
             }
@@ -442,6 +473,25 @@ namespace NoCaml.UserProfiles
             }
         }
 
+        /// <summary>
+        /// Called for each profile on the first iteration. Allows loading of a lan id mapping so that 
+        /// other ids can be used for relationships without requiring a search.
+        /// </summary>
+        /// <param name="p"></param>
+        protected virtual void LoadIncrementalData(IProfile p)
+        {
+        }
+
+        private void LoadIncrementalDataInternal(IProfile p)
+        {
+            lock (lidSync)
+            {
+                LoadIncrementalData(p);
+            }
+        }
+
+        private object lidSync = new object();
+
         public static void RunBatchUpdate(IEnumerable<ProfileDataLoader> pdls, IEnumerable<IProfile> profiles)
         {
             // initialize each loader
@@ -467,6 +517,8 @@ namespace NoCaml.UserProfiles
             var activeExporters = pdls.Where(pdl => pdl.LoaderInitialized).ToList();
 
             LogMessage("Profile Import", "Starting profile iteration", "");
+
+            try { 
             profiles.EachParallel(p =>
             {
                 bool updated = false;
@@ -493,6 +545,8 @@ namespace NoCaml.UserProfiles
                             changedPropertyCount = c2;
                        
                     }
+
+                            pdl.LoadIncrementalDataInternal(p);
 
                         }
 
@@ -533,7 +587,12 @@ namespace NoCaml.UserProfiles
                 }
 
             });
+            }
 
+            catch (Exception ex)
+            {
+                LogException("Profile Iteration", ex);
+            }
 
             // some loaders can affect other profiles. These will have properties set to specify that 
             // further updating is required.
@@ -543,7 +602,7 @@ namespace NoCaml.UserProfiles
             if (delayedLoaders.Count > 0)
             {
                 LogMessage("Profile Import", "Running secondary updates", "");
-
+                try { 
                 profiles.EachParallel(p =>
                 {
                     bool updated = false;
@@ -584,6 +643,13 @@ namespace NoCaml.UserProfiles
                     }
 
                 });
+                }
+
+                catch (Exception ex)
+                {
+                    LogException("Profile Iteration", ex);
+                }
+
             }
 
             foreach (var pdl in activeExporters)
