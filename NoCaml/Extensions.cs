@@ -15,6 +15,8 @@ namespace NoCaml
         /// </summary>
         public static void EachParallel<T>(this IEnumerable<T> list, Action<T> action)
         {
+            Exception unhandledException = null;
+
             // enumerate the list so it can't change during execution
             list = list.ToArray();
             var count = list.Count();
@@ -52,10 +54,18 @@ namespace NoCaml
                             ThreadPool.QueueUserWorkItem(new WaitCallback((object data) =>
                             {
                                 int methodIndex = (int)((object[])data)[0];
-
-                                // Execute the method and pass in the enumerated item
-                                action((T)((object[])data)[1]);
-
+                                try
+                                {
+                                    // Execute the method and pass in the enumerated item
+                                    action((T)((object[])data)[1]);
+                                }
+                                catch (Exception ex)
+                                {
+                                    // this should not happen - if the action throws 
+                                    // an exception, the process stalls
+                                    unhandledException = ex;
+                                }
+                                
                                 // Tell the calling thread that we're done
                                 resetEvents[methodIndex].Set();
                             }), new object[] { i, item });
@@ -67,6 +77,19 @@ namespace NoCaml
                     }
                 }
             }
+
+            if (unhandledException != null)
+            {
+                if (unhandledException.InnerException != null)
+                {
+                    throw unhandledException.InnerException;
+                }
+                else
+                {
+                    throw unhandledException;
+                }
+            }
+
         }
 
     }

@@ -395,7 +395,14 @@ namespace NoCaml.UserProfiles
 
         }
 
+        private static void LogMessage(string source, string message, string detail)
+        {
+            if (Log != null)
+            {                         
+                    Log(source, message, detail);               
+            }
 
+        }
 
         private static void LogException(string source, Exception ex)
         {
@@ -403,7 +410,7 @@ namespace NoCaml.UserProfiles
             {
                 if (ex is TargetInvocationException && ex.InnerException != null)
                 {
-                    Log(source, ex.InnerException.Message, ex.InnerException.StackTrace);
+                    LogException(source, ex.InnerException);
                 }
                 else
                 {
@@ -459,19 +466,19 @@ namespace NoCaml.UserProfiles
 
             var activeExporters = pdls.Where(pdl => pdl.LoaderInitialized).ToList();
 
-
+            LogMessage("Profile Import", "Starting profile iteration", "");
             profiles.EachParallel(p =>
             {
                 bool updated = false;
                 var changedPropertyCount = 0;
                 foreach (var pdl in activeLoaders)
                 {
-
+                     try
+                        {
                     if (pdl.ShouldUpdateInBatch(p))
                     {
                         lock (pdl.StatSync) { pdl.ProfilesChecked++; }
-                        try
-                        {
+                       
                             if (pdl.BulkDataAvailable)
                             {
                                 pdl.UpdateProfileBatch(p);
@@ -484,15 +491,15 @@ namespace NoCaml.UserProfiles
                             updated = updated || c2 > changedPropertyCount;
                             if (c2 > changedPropertyCount) { lock (pdl.StatSync) { pdl.ProfilesUpdated++; } }
                             changedPropertyCount = c2;
-                        }
-
-                        catch (Exception ex)
-                        {
-                            LogException(pdl.SourceName + ":" + p.LanID, ex);
-                        }
+                       
                     }
 
+                        }
 
+                     catch (Exception ex)
+                     {
+                         LogException(pdl.SourceName + ":" + p.LanID, ex);
+                     }
 
 
                 }
@@ -535,6 +542,8 @@ namespace NoCaml.UserProfiles
 
             if (delayedLoaders.Count > 0)
             {
+                LogMessage("Profile Import", "Running secondary updates", "");
+
                 profiles.EachParallel(p =>
                 {
                     bool updated = false;
