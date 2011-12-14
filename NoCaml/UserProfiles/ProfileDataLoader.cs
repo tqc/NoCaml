@@ -255,7 +255,7 @@ namespace NoCaml.UserProfiles
     public abstract class ProfileDataLoader<TProfile> : ProfileDataLoader where TProfile : IProfile
     {
 
-      
+        
 
         /// <summary>
         /// For sources where validity is dependent on other properties, allow filtering of the profile list 
@@ -271,6 +271,7 @@ namespace NoCaml.UserProfiles
         {
             return IsValidProfile((TProfile)p);
         }
+
 
         /// <summary>
         /// Update an individual profile with no other data available - generally by calling a web service.        
@@ -492,16 +493,28 @@ namespace NoCaml.UserProfiles
 
         private object lidSync = new object();
 
-        public static void RunBatchUpdate(IEnumerable<ProfileDataLoader> pdls, IEnumerable<IProfile> profiles)
+        protected Dictionary<string, Dictionary<string, IProfile>> Indexes { get; set; }
+
+        public static void RunBatchUpdate(IEnumerable<ProfileDataLoader> pdls, List<IProfile> profiles)
         {
             // initialize each loader
+
+            var indexes = new Dictionary<string, Dictionary<string, IProfile>>();
+
+            LogMessage("Profile Import", "Indexing Profiles", "");
+
+            indexes["LanID"] = profiles.ToDictionary(p => p.LanID.Trim().ToLower(), p => p);
+
+            LogMessage("Profile Import", "Initialising Loaders", "");
 
             foreach (var pdl in pdls)
             {
                 try
                 {
+                    pdl.Indexes = indexes;
                     pdl.LoaderInitialized = false;
                     pdl.BulkDataAvailable = pdl.LoadBulkData();
+                    pdl.UpdateProfileIndexes(profiles);
                     pdl.ProfilesToUpdate = pdl.SelectProfilesToUpdate(profiles);
                     pdl.LoaderInitialized = true;
                 }
@@ -669,6 +682,11 @@ namespace NoCaml.UserProfiles
 
         }
 
+        protected virtual void UpdateProfileIndexes(List<IProfile> profiles)
+        {
+            
+        }
+
 
         public virtual bool SecondaryUpdateRequired()
         {
@@ -688,7 +706,7 @@ namespace NoCaml.UserProfiles
 
 
         private bool LoaderInitialized = false;
-        private bool BulkDataAvailable = false;
+        protected bool BulkDataAvailable {get;private set;}
 
 
 
