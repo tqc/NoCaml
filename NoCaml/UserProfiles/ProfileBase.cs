@@ -20,8 +20,7 @@ namespace NoCaml.UserProfiles
         protected ProfileBase()
         {
             ChangedProperties = new List<string>();
-            SourceLog = new Dictionary<string, SourceLogEntry>();
-            HashLog = new Dictionary<string, string>();
+            SourceLog = new SourceLog();
         }
 
         /// <summary>
@@ -35,10 +34,7 @@ namespace NoCaml.UserProfiles
         /// Records the source for each property currently set on the profile
         /// </summary>
         [ProfilePropertyStorage("SourceLog", PropertyType = "HTML", Length = 2000)]
-        public Dictionary<string, SourceLogEntry> SourceLog { get; set; }
-
-        [ProfilePropertyStorage("HashLog", PropertyType = "HTML", Length = 2000)]
-        public Dictionary<string, string> HashLog { get; set; }
+        public SourceLog SourceLog { get; set; }
 
 
         /// <summary>
@@ -306,133 +302,36 @@ namespace NoCaml.UserProfiles
                 PartialLoadFunctions = new Dictionary<string, Func<string, object>>();
                 SaveFunctions = new Dictionary<string, Func<object, object>>();
 
-                RegisterCustomPropertyLoader<ProfileBase, Dictionary<string, SourceLogEntry>>(p => p.SourceLog,
-                        ppvc =>
-                        {
-                            var sl = (string)ppvc.Value;
-                            var dsl = new Dictionary<string, SourceLogEntry>();
-                            if (!string.IsNullOrEmpty(sl))
-                            {
-                                var ll = sl.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-                                foreach (var l in ll)
-                                {
-                                    // editing in the out of box ui can add html tags that should be ignored
-                                    if (l.Contains("<")) continue;
-
-
-                                    // new format - property|source|date|user
-                                    if (l.Contains("|"))
-                                    {
-                                        var cl = l.Split('|');
-                                        if (cl.Length < 4) continue;
-                                        var entry = new SourceLogEntry()
-                                        {
-                                            Field = cl[0].Trim(),
-                                            Source = cl[1].Trim(),
-                                            Updated = DateTime.Parse(cl[2].Trim()),
-                                            User = cl[3].Trim(),
-                                            SourceLogHistory = new List<SourceLogEntry.SourceLogHistoryEntry>()
-                                        };
-
-                                        // after the first 4 columns is audit log
-                                        for (var i = 4; i + 2 < cl.Length; i+=3)
-                                        {
-                                            var he = new SourceLogEntry.SourceLogHistoryEntry()
-                                            {
-                                                Source = cl[i],
-                                                Updated = DateTime.Parse(cl[i + 1].Trim()),
-                                                User = cl[i + 2]
-                                            };
-                                            entry.SourceLogHistory.Add(he);
-                                        }
-
-
-                                        dsl[entry.Field] = entry;
-                                    }
-                                    else
-                                    {
-                                        //old format - property:source
-                                        if (!l.Contains(":")) continue;
-                                        var cl = l.Split(':');
-
-                                        if (cl.Length < 2) continue;
-                                        var entry = new SourceLogEntry()
-                                        {
-                                            Field = cl[0].Trim(),
-                                            Source = cl[1].Trim(),
-                                            Updated = DateTime.MinValue,
-                                            User = "",
-                                            SourceLogHistory = new List<SourceLogEntry.SourceLogHistoryEntry>()
-                                        };
-                                        dsl[entry.Field] = entry;
-                                    }
-                                }
-
-                            }
-                            return dsl;
-                        },
-                        null,
-                        sl =>
-                        {
-                            // sourcelog must be less than 2000 chars
-
-                            Func<Dictionary<string, SourceLogEntry>, int, string> slts = (v, mh) => 
-                                string.Join(
-                                "\n",
-                                v.Select(kv => string.Format("{0}|{1}|{2:yyyy-MM-dd HH:mm}|{3}|{4}", kv.Value.Field, kv.Value.Source, kv.Value.Updated, kv.Value.User,
-                             string.Join("|", kv.Value.SourceLogHistory.Take(mh)
-                             .Select(he => string.Format("{0}|{1:yyyy-MM-dd HH:mm}|{2}", he.Source, he.Updated, he.User)).ToArray()
-                             )
-
-                             )
-                                ).ToArray()
-                                );
-
-                            // drop history if the log gets too long
-                            var result = slts(sl, 5);
-                            if (result.Length >= 2000) result = slts(sl, 4);
-                            if (result.Length >= 2000) result = slts(sl, 3);
-                            if (result.Length >= 2000) result = slts(sl, 2);
-                            if (result.Length >= 2000) result = slts(sl, 1);
-                            if (result.Length >= 2000) result = slts(sl, 0);
-                            if (result.Length >= 2000)
-                            {
-                                // there are other options to reduce the size here, but hopefully they won't be needed
-                                result = result.Substring(0, 2000);
-                            }
-                            return result;
-                        }
-                            
-                            );
+                
 
 
 
-                RegisterCustomPropertyLoader<ProfileBase, Dictionary<string, string>>(p => p.HashLog,
-            ppvc =>
-            {
-                var sl = (string)ppvc.Value;
-                var dsl = new Dictionary<string, string>();
-                if (!string.IsNullOrEmpty(sl))
-                {
-                    var ll = sl.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var l in ll)
-                    {
-                        if (!l.Contains(":")) continue;
-                        if (l.Contains("<")) continue;
-                        var cl = l.Split(':');
-                        var pn = cl[0].Trim();
-                        var cs = cl[1].Trim();
-                        dsl.Add(pn, cs);
-                    }
+            //    RegisterCustomPropertyLoader<ProfileBase, Dictionary<string, string>>(p => p.HashLog,
+            //ppvc =>
+            //{
+            //    var sl = (string)ppvc.Value;
+            //    var dsl = new Dictionary<string, string>();
+            //    if (!string.IsNullOrEmpty(sl))
+            //    {
+            //        var ll = sl.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+            //        foreach (var l in ll)
+            //        {
+            //            if (!l.Contains(":")) continue;
+            //            if (l.Contains("<")) continue;
+            //            var cl = l.Split(':');
+            //            var pn = cl[0].Trim();
+            //            var cs = cl[1].Trim();
+            //            dsl.Add(pn, cs);
+            //        }
 
-                }
-                return dsl;
-            },
-            null,
-            v => string.Join(
-                "\n",
-                v.Select(kv => kv.Key + ":" + kv.Value).ToArray()
-                ));
+            //    }
+            //    return dsl;
+            //},
+            //null,
+            //v => string.Join(
+            //    "\n",
+            //    v.Select(kv => kv.Key + ":" + kv.Value).ToArray()
+            //    ));
 
                 RegisterCustomLoadSaveFunctions();
 
@@ -464,7 +363,9 @@ namespace NoCaml.UserProfiles
             public Action<ProfileBase> SaveAction;
             public List<AudienceAttribute> AffectedAudiences;
             public List<ProfilePropertySourceAttribute> ValidSources;
+            public ProfilePropertySourceLogAttribute LogSettings;
 
+           
 
             public PropertyAction(PropertyInfo pi, ProfilePropertyStorageAttribute psa,ProfilePropertyIndexAttribute pia)
             {
@@ -501,6 +402,10 @@ namespace NoCaml.UserProfiles
                     {
                         LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, Convert.ToDateTime(source[DataPropertyName].Value), null));
                     }
+                    else if (PropertyInfo.PropertyType == typeof(SourceLog))
+                    {
+                        LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, NoCaml.UserProfiles.SourceLog.Load(source[DataPropertyName]), null));
+                    }
                     else
                     {
                         LoadAction = ((source, dest) => PropertyInfo.SetValue(dest, source[DataPropertyName].Value, null));
@@ -527,6 +432,10 @@ namespace NoCaml.UserProfiles
                 {
                     SaveAction = (dest) => dest.SetIfChanged(PropertyInfo, DataPropertyName, AffectedAudiences, SaveFunctions[PropertyInfo.Name]);
                 }
+                else if (PropertyInfo.PropertyType == typeof(SourceLog))
+                {
+                    SaveAction = (dest) => dest.SetIfChanged(PropertyInfo, DataPropertyName, AffectedAudiences, o=>((SourceLog)o).Serialize());                
+                }
                 else
                 {
                     SaveAction = (dest) => dest.SetIfChanged(PropertyInfo, DataPropertyName, AffectedAudiences, o => o);
@@ -534,9 +443,16 @@ namespace NoCaml.UserProfiles
 
                 AffectedAudiences = PropertyInfo.GetCustomAttributes(typeof(AudienceAttribute), false)
            .Cast<AudienceAttribute>().ToList();
+
                 ValidSources = PropertyInfo.GetCustomAttributes(false)
                     .Where(a => a is ProfilePropertySourceAttribute)
                     .Cast<ProfilePropertySourceAttribute>().ToList();
+
+                LogSettings = PropertyInfo.GetCustomAttributes(false)
+                    .Where(a => a is ProfilePropertySourceLogAttribute)
+                    .OfType<ProfilePropertySourceLogAttribute>().FirstOrDefault();
+                if (LogSettings == null) LogSettings = new ProfilePropertySourceLogAttribute();
+
             }
 
         }
@@ -642,39 +558,91 @@ namespace NoCaml.UserProfiles
             return true;
         }
 
-        public void SetUpdated(string p, string source)
+        public bool IsUpdatedSince(string propname, DateTime since)
         {
-            SourceLogEntry e;
-            if (SourceLog.ContainsKey(p))
+            var sle = GetSourceLog(propname);
+            if (sle == null) return false;
+            return sle.Updated >= since;
+        }
+
+
+        public SourceLogEntry GetSourceLog(string propname)
+        {
+            var prop = AllLoadFunctions.Where(pa => pa.PropertyInfo.Name == propname).FirstOrDefault();
+            if (prop == null)
             {
-                e = SourceLog[p];
+                // no load/save/log settings
+                return null;
+            }
+            SourceLogEntry e =null;
 
-                if (HistoryRequired(source))
-                {
-                    while (e.SourceLogHistory.Count > 5)
-                    {
-                        e.SourceLogHistory.RemoveAt(0);
-                    }
+            var customSourceLog = (SourceLog)this.GetType().GetProperty(prop.LogSettings.LogPropertyName).GetValue(this, null);
+            if (customSourceLog.ContainsKey(propname))
+            {
+                e = customSourceLog[propname];
+            }
+            else if (SourceLog.ContainsKey(propname))
+            {
+                e = SourceLog[propname];
+            }
 
-                    e.SourceLogHistory.Add(new SourceLogEntry.SourceLogHistoryEntry()
-                    {
-                        Source = e.Source,
-                        Updated = e.Updated,
-                        User = e.User
-                    });
-
-                }
+            return e;
+        }
 
 
+
+        public void SetUpdated(string propname, string source, object oldValue)
+        {
+            var prop = AllLoadFunctions.Where(pa => pa.PropertyInfo.Name == propname).FirstOrDefault();
+            if (prop == null)
+            {
+                // no load/save/log settings
+                return;
+            }
+
+            SourceLogEntry e;
+
+            var customSourceLog = (SourceLog)this.GetType().GetProperty(prop.LogSettings.LogPropertyName).GetValue(this, null);
+            if (customSourceLog.ContainsKey(propname))
+            {
+                e = customSourceLog[propname];
+            }
+            else if (SourceLog.ContainsKey(propname))
+            {
+                e = SourceLog[propname];
+                customSourceLog[propname] = e;
+                SourceLog.Remove(propname);
+                ChangedProperties.Add("SourceLog");
             }
             else
             {
                 e = new SourceLogEntry()
                 {
-                    Field = p,
+                    Field = propname,
                     SourceLogHistory = new List<SourceLogEntry.SourceLogHistoryEntry>()
                 };
+                customSourceLog[propname] = e;
             }
+
+            // move oldvalue and the current source details if any to the history
+
+            e.SourceLogHistory.Add(new SourceLogEntry.SourceLogHistoryEntry()
+            {
+                Source = e.Source,
+                Updated = prop.LogSettings.StoreDate? e.Updated : DateTime.MinValue,
+                User = prop.LogSettings.StoreUsername ? e.User : null,
+                Value = prop.LogSettings.StorePastValues ? GetLogValue(oldValue) : null,
+                Hash = prop.LogSettings.StoreHash ? GetLogHash(oldValue) : null,
+            });
+
+
+            // remove any excess history records
+            while (e.SourceLogHistory.Count > prop.LogSettings.HistoryLength)
+            {
+                e.SourceLogHistory.RemoveAt(0);
+            }
+
+            // update log with details of change
 
             e.Source = source;
             e.Updated = DateTime.Now;
@@ -682,10 +650,38 @@ namespace NoCaml.UserProfiles
             ? SPContext.Current.Web.CurrentUser.LoginName : "";
 
 
-            SourceLog[p] = e;
-            ChangedProperties.Add(p);
-            ChangedProperties.Add("SourceLog");
-            Debug.WriteLine(string.Format("{0}: Updated {1} from {2}", this.LanID, p, source));
+            ChangedProperties.Add(propname);
+            ChangedProperties.Add(prop.LogSettings.LogPropertyName);
+            Debug.WriteLine(string.Format("{0}: Updated {1} from {2}", this.LanID, propname, source));
+        }
+
+        private string GetLogHash(object val)
+        {
+            if (val == null) return null;
+            return GetHash(val.ToString());
+        }
+
+        /// <summary>
+        /// return a simple string version of the value used in the source log. 
+        /// special characters are removed and the max length is 32 characters.
+        /// This works best for numbers or short strings.
+        /// </summary>
+        /// <param name="val"></param>
+        /// <returns></returns>
+        private string GetLogValue(object val)
+        {
+            if (val == null) return null;
+            var s = val.ToString()
+                .Replace(",", "")
+                .Replace("|", "")
+                .Replace(";", "")
+                .Replace("\r", "")
+                .Replace("\n", "")
+                .Replace("\t", "")
+                .Replace("#", "");
+            if (s.Length > 32) s = s.Substring(0, 32);
+
+            return s;
         }
 
         private static SHA1Managed SHA1 = new SHA1Managed();
@@ -708,23 +704,32 @@ namespace NoCaml.UserProfiles
 
         }
 
-        public bool ImportedPropertyChanged(string p, string newvalue)
+        public bool ImportedPropertyChanged(string propname, string source, string newvalue)
         {
 
-            var newhash = GetHash(newvalue);
-
-            if (!HashLog.ContainsKey(p) || HashLog[p] != newhash)
+            var prop = AllLoadFunctions.Where(pa => pa.PropertyInfo.Name == propname).FirstOrDefault();
+            if (prop == null || !prop.LogSettings.StoreHash)
             {
-                HashLog[p] = newhash;
-                ChangedProperties.Add("HashLog");
+                // no load/save/log settings - assume changed
                 return true;
             }
-            else
-            {
-                return false;
+
+            
+            var customSourceLog = (SourceLog)this.GetType().GetProperty(prop.LogSettings.LogPropertyName).GetValue(this, null);
+
+            if (!customSourceLog.ContainsKey(propname)) {
+                // no previous history - assume changed
+                return true;
             }
 
+            SourceLogEntry e = customSourceLog[propname];
+            var oldhash = e.SourceLogHistory.Where(o => o.Source == source).Select(o=>o.Hash).FirstOrDefault();
+            if (oldhash == null) return true;
 
+            var newhash = GetHash(newvalue);
+            if (newhash != oldhash) return true;
+
+            return false;
 
 
 

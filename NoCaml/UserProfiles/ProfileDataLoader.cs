@@ -129,7 +129,7 @@ namespace NoCaml.UserProfiles
 
             if (lpd.RaisePriorityOnChange && newvalue as string != null)
             {
-                var changed = profile.ImportedPropertyChanged(lpd.PropertyInfo.Name, newvalue as string);
+                var changed = profile.ImportedPropertyChanged(lpd.PropertyInfo.Name, this.SourceName, newvalue as string);
                 if (!changed
                     && !string.IsNullOrEmpty(currentsource)
                     && lpd.BetterSources.Contains(currentsource)) return;
@@ -146,7 +146,7 @@ namespace NoCaml.UserProfiles
                 return;
 
             lpd.PropertyInfo.SetValue(profile, newvalue, null);
-            profile.SetUpdated(lpd.PropertyInfo.Name, SourceName);
+            profile.SetUpdated(lpd.PropertyInfo.Name, SourceName, currentvalue);
 
         }
 
@@ -187,7 +187,7 @@ namespace NoCaml.UserProfiles
 
             if (sa.RaisePriorityIfChanged && newvalue as string != null)
             {
-                var changed = profile.ImportedPropertyChanged(pi.Name, newvalue as string);
+                var changed = profile.ImportedPropertyChanged(pi.Name, this.SourceName, newvalue as string);
                 if (nsa != null && nsa.Order < sa.Order && !changed) return;
             }
 
@@ -203,7 +203,7 @@ namespace NoCaml.UserProfiles
                 return;
 
             pi.SetValue(profile, newvalue, null);
-            profile.SetUpdated(pi.Name, SourceName);
+            profile.SetUpdated(pi.Name, SourceName, currentvalue);
 
         }
 

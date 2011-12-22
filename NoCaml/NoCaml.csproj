@@ -117,6 +117,7 @@
     <Compile Include="UserProfiles\AudienceAttribute.cs" />
     <Compile Include="UserProfiles\AudienceManagerWrapper.cs" />
     <Compile Include="UserProfiles\AudienceWrapper.cs" />
+    <Compile Include="UserProfiles\ProfilePropertySourceLogAttribute.cs" />
     <Compile Include="UserProfiles\ProfilePropertyIndexAttribute.cs" />
     <Compile Include="UserProfiles\IProfile.cs" />
     <Compile Include="UserProfiles\ProfileBase.cs" />
@@ -124,6 +125,7 @@
     <Compile Include="UserProfiles\ProfilePropertySourceAttribute.cs" />
     <Compile Include="UserProfiles\ProfilePropertyStorageAttribute.cs" />
     <Compile Include="UserProfiles\Rule.cs" />
+    <Compile Include="UserProfiles\SourceLog.cs" />
     <Compile Include="UserProfiles\SourceLogEntry.cs" />
     <Compile Include="UserProfiles\UserInfoWrapper.cs" />
     <Compile Include="UserProfiles\UserProfileWrapper.cs" />
@@ -162,7 +164,7 @@
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties BuildVersion_UseGlobalSettings="False" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateFileVersion="True" />
+      <UserProperties BuildVersion_UpdateFileVersion="True" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_UseGlobalSettings="False" />
     </VisualStudio>
   </ProjectExtensions>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -9,17 +9,16 @@ namespace NoCaml.UserProfiles
     {
         string LanID { get; set; }
 
-        Dictionary<string, SourceLogEntry> SourceLog { get; set; }
+        SourceLogEntry GetSourceLog(string propname);
 
-        Dictionary<string, string> HashLog { get; set; }
+        bool IsUpdatedSince(string propname, DateTime since);
 
-
-        void SetUpdated(string p, string source);
+        void SetUpdated(string p, string source, object oldvalue);
         void Save();
 
 
         // internals
-        bool ImportedPropertyChanged(string p, string newvalue);
+        bool ImportedPropertyChanged(string p, string source, string newvalue);
         string GetCurrentSource(string p);
         List<string> ChangedProperties { get; set; }
     }

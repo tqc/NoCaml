@@ -12,6 +12,8 @@ namespace NoCaml.UserProfiles
             public string Source { get; set; }
             public DateTime Updated { get; set; }
             public string User { get; set; }
+            public string Value { get; set; }
+            public string Hash { get; set; }
         }
 
         public string Field { get; set; }
