@@ -503,7 +503,18 @@ namespace NoCaml.UserProfiles
 
             LogMessage("Profile Import", "Indexing Profiles", "");
 
-            indexes["LanID"] = profiles.ToDictionary(p => p.LanID.Trim().ToLower(), p => p);
+         //   indexes["LanID"] = profiles.ToDictionary(p => p.LanID.Trim().ToLower(), p => p);
+
+            var profileindex = new Dictionary<string, IProfile>();
+
+            foreach (var profile in profiles)
+            {
+                if (string.IsNullOrEmpty(profile.LanID)) continue;
+                var k = profile.LanID.Trim().ToLower();
+                if (profileindex.ContainsKey(k)) continue;
+                profileindex[k] = profile;
+            }
+            indexes["LanID"] = profileindex;
 
             LogMessage("Profile Import", "Initialising Loaders", "");
 
