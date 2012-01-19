@@ -291,8 +291,16 @@ namespace NoCaml.UserProfiles
 
         private static bool LoadSaveFunctionsRegistered = false;
 
+        private static Type ProfileType { get; set; }
+
         private void RegisterLoadSaveFunctions()
         {
+            if (ProfileType != null && ProfileType.AssemblyQualifiedName != this.GetType().AssemblyQualifiedName)
+            {
+                // handle regeneration of profile classes
+                LoadSaveFunctionsRegistered = false;
+            }
+
             if (LoadSaveFunctionsRegistered) { return; }
 
             lock (syncRoot)

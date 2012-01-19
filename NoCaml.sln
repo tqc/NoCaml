@@ -18,8 +18,8 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		BuildVersion_UpdateFileVersion = True
-		BuildVersion_BuildVersioningStyle = None.None.DeltaBaseYearDayOfYear.TimeStamp
 		BuildVersion_UpdateAssemblyVersion = False
+		BuildVersion_BuildVersioningStyle = None.None.DeltaBaseYearDayOfYear.TimeStamp
+		BuildVersion_UpdateFileVersion = True
 	EndGlobalSection
 EndGlobal
