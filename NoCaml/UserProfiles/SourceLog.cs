@@ -19,7 +19,7 @@ namespace NoCaml.UserProfiles
                                 string.Join(
                                 "\n",
                                 v.Select(kv => string.Format("{0}|{1}|{2:yyyy-MM-dd HH:mm}|{3}|5|{4}", kv.Value.Field, kv.Value.Source, kv.Value.Updated, kv.Value.User,
-                             string.Join("|", kv.Value.SourceLogHistory.Take(mh)
+                             string.Join("|", kv.Value.SourceLogHistory.Reverse<SourceLogEntry.SourceLogHistoryEntry>().Take(mh).Reverse<SourceLogEntry.SourceLogHistoryEntry>()
                              .Select(he => string.Format("{0}|{1:yyyy-MM-dd HH:mm}|{2}|{3}|{4}", he.Source, he.Updated, he.User, he.Value, he.Hash)).ToArray()
                              )
 
@@ -28,7 +28,12 @@ namespace NoCaml.UserProfiles
                                 );
 
                             // drop history if the log gets too long
-                            var result = slts(sl, 5);
+                            var result = slts(sl, 10);
+                            if (result.Length >= 2000) result = slts(sl, 9);
+                            if (result.Length >= 2000) result = slts(sl, 8);
+                            if (result.Length >= 2000) result = slts(sl, 7);
+                            if (result.Length >= 2000) result = slts(sl, 6);
+                            if (result.Length >= 2000) result = slts(sl, 5);
                             if (result.Length >= 2000) result = slts(sl, 4);
                             if (result.Length >= 2000) result = slts(sl, 3);
                             if (result.Length >= 2000) result = slts(sl, 2);
