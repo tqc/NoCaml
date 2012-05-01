@@ -6,6 +6,7 @@ using Microsoft.SharePoint;
 using Microsoft.Office.Server;
 using System.Reflection;
 using System.Collections;
+using System.Diagnostics;
 
 namespace NoCaml.UserProfiles
 {
@@ -199,7 +200,93 @@ namespace NoCaml.UserProfiles
 
 
             }
+
+            if (additionalAudiences.Count > 0)
+            {
+                var scanner = new TinyPG.Scanner();
+                var parser = new TinyPG.Parser(scanner);
+
+                // override the definitions from the code
+                foreach (var kv in additionalAudiences)
+                {
+                    var name = kv.Key;
+                    var ruleExpression = kv.Value;
+                    if (string.IsNullOrEmpty(ruleExpression)) continue;
+
+
+                    var parseTree = parser.Parse(ruleExpression);
+                    if (parseTree.Errors.Count > 0)
+                    {
+                        foreach (var err in parseTree.Errors)
+                        {
+                            // probably should have some real logging here
+                            Debug.WriteLine(err.Message);
+                        }
+                        continue;
+                    }
+                    else
+                    {
+                        var a = new AudienceWrapper()
+                        {
+                            Name = name,
+                            Description = name,
+                            Operator = "AND",
+                            Rules = new List<Rule>()
+                        };
+
+                        WriteRules(parseTree, a.Rules);
+                        audiences[name] = a;
+                    }
+
+                }
+            }
+
             EnsureAudiencesExist(audiences.Values, true, removeUnmanagedAudiences);
+
+
+        }
+
+        private void WriteRules(TinyPG.ParseNode n, List<Rule> rules)
+        {
+
+            var matchedRule = n.Text.Contains(" ") ? n.Text.Substring(0, n.Text.IndexOf(" ")) : n.Text;
+            var value = n.Text.Contains("'") ? n.Text.Substring(n.Text.IndexOf("'") + 1, n.Text.LastIndexOf("'") - n.Text.IndexOf("'") - 1) : "";
+            if (matchedRule == "SimpleRule")
+            {
+                var name = n.Nodes[0].Text.Substring(n.Nodes[0].Text.IndexOf("'") + 1, n.Nodes[0].Text.LastIndexOf("'") - n.Nodes[0].Text.IndexOf("'") - 1);
+                var op = n.Nodes[1].Nodes[0].Text.Substring(0, n.Nodes[1].Nodes[0].Text.IndexOf(" "));
+                var val = n.Nodes[2].Text.Substring(n.Nodes[2].Text.IndexOf("'") + 2, n.Nodes[2].Text.LastIndexOf("'") - n.Nodes[2].Text.IndexOf("'") - 3);
+                op = op == "EQ" ? "="
+                    : op == "NEQ" ? "<>"
+                    : op == "Contains" ? "Contains"
+                    : "=";
+                Debug.WriteLine(name + ", " + op + ", " + val);
+                rules.Add(new Rule(name, op, val));
+            }
+            else if (matchedRule == "BROPEN")
+            {
+                Debug.WriteLine("(");
+                rules.Add(new Rule(null, "(", null));
+            }
+            else if (matchedRule == "BRCLOSE")
+            {
+                Debug.WriteLine(")");
+                rules.Add(new Rule(null, ")", null));
+            }
+            else if (matchedRule == "AND")
+            {
+                Debug.WriteLine("AND");
+                rules.Add(new Rule(null, "AND", null));
+            }
+            else if (matchedRule == "OR")
+            {
+                Debug.WriteLine("OR");
+                rules.Add(new Rule(null, "OR", null));
+            }
+            else
+            {
+                foreach (var n2 in n.Nodes) { WriteRules(n2, rules); };
+            }
 
 
         }

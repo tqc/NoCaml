@@ -120,6 +120,9 @@
     <Compile Include="SchemaManager.cs" />
     <Compile Include="UserProfiles\AudienceAttribute.cs" />
     <Compile Include="UserProfiles\AudienceManagerWrapper.cs" />
+    <Compile Include="UserProfiles\AudienceRuleParser\Parser.cs" />
+    <Compile Include="UserProfiles\AudienceRuleParser\ParseTree.cs" />
+    <Compile Include="UserProfiles\AudienceRuleParser\Scanner.cs" />
     <Compile Include="UserProfiles\AudienceWrapper.cs" />
     <Compile Include="UserProfiles\ProfilePropertySourceLogAttribute.cs" />
     <Compile Include="UserProfiles\ProfilePropertyIndexAttribute.cs" />
@@ -136,6 +139,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="NoCaml.snk" />
+    <None Include="UserProfiles\AudienceRuleParser\audiencerules.tpg" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
@@ -168,7 +172,7 @@
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties BuildVersion_UpdateFileVersion="True" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_UseGlobalSettings="False" />
+      <UserProperties BuildVersion_UseGlobalSettings="False" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateFileVersion="True" />
     </VisualStudio>
   </ProjectExtensions>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

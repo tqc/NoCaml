@@ -20,6 +20,11 @@ namespace NoCaml.UserProfiles
         private static Type TARC;
 
         public Rule() { }
+        public Rule(string left, string op, string right) {
+            Left = left;
+            Operator = op;
+            Right = right;
+        }
 
         public Rule(object arc)
         {

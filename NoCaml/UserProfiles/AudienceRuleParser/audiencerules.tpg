@@ -1,0 +1,26 @@
+//Tiny Parser Generator v1.3
+//Copyright © Herre Kuijpers 2008-2012
+
+<% @TinyPG Language="c#" %>
+
+BROPEN 	->  @"\(";
+BRCLOSE 	->  @"\)";
+EOF         -> @"^$";
+EQ 		-> "==";
+NEQ 		-> "!=";
+CONTAINS	-> "contains";
+AND 		-> "&&";
+OR 		-> "\\|\\|";
+NAME          -> @"\w+";
+VALUE         -> @"""[^""]*"""; //"[^"]*"
+
+
+
+[Skip] WHITESPACE  -> @"\s+";
+
+Start 		-> (SimpleRule | CompositeRule) (CombineOperator (SimpleRule | CompositeRule))* EOF;
+MatchOperator 	-> EQ | NEQ | CONTAINS;
+CombineOperator 	-> AND | OR;
+SimpleRule 	-> NAME MatchOperator VALUE;
+CompositeRule	-> BROPEN (SimpleRule | CompositeRule) (CombineOperator (SimpleRule | CompositeRule))* BRCLOSE;
+Rule  		-> SimpleRule | CompositeRule;
