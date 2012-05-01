@@ -137,11 +137,21 @@ namespace NoCaml.UserProfiles
             EnsureAudiencesExist(typeof(T), removeUnmanagedAudiences);
         }
 
+        public void EnsureAudiencesExist<T>(bool removeUnmanagedAudiences, Dictionary<string,string> additionalAudiences) where T : ProfileBase
+        {
+            EnsureAudiencesExist(typeof(T), removeUnmanagedAudiences, additionalAudiences);
+        }
+
+        public void EnsureAudiencesExist(Type profileType, bool removeUnmanagedAudiences)
+        {
+            EnsureAudiencesExist(profileType, removeUnmanagedAudiences, new Dictionary<string, string>());
+        }
+
         /// <summary>
         /// Create audiences specified as attributes
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public void EnsureAudiencesExist(Type profileType, bool removeUnmanagedAudiences)
+        public void EnsureAudiencesExist(Type profileType, bool removeUnmanagedAudiences, Dictionary<string, string> additionalAudiences)
         {
             var audiences = new Dictionary<string, AudienceWrapper>();
 
