@@ -241,6 +241,14 @@ namespace NoCaml.UserProfiles
                         };
 
                         UpdateAudienceSpecFromParseTree(parseTree, a);
+                        
+                        // remove audience specs using the previous names so we can override audiences 
+                        //defined with attributes
+                        foreach (var pn in a.PreviousNames)
+                        {
+                            if (audiences.ContainsKey(pn)) audiences.Remove(pn);
+                        }
+
                         audiences[name] = a;
                     }
 
@@ -314,11 +322,7 @@ namespace NoCaml.UserProfiles
 
         }
 
-        private void UpdateAudienceRules(AudienceSpec audienceSpec)
-        {
-
-        }
-
+ 
 
         public void EnsureAudiencesExist(IEnumerable<AudienceSpec> specifiedAudiences, bool updateRules, bool allowAudienceDeletion)
         {
