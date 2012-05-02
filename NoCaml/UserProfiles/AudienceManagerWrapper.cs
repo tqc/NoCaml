@@ -133,28 +133,28 @@ namespace NoCaml.UserProfiles
         }
 
 
-        public void EnsureAudiencesExist<T>(bool removeUnmanagedAudiences) where T : ProfileBase
+        public void EnsureAudiencesExist<T>(bool allowAudienceDeletion) where T : ProfileBase
         {
-            EnsureAudiencesExist(typeof(T), removeUnmanagedAudiences);
+            EnsureAudiencesExist(typeof(T), allowAudienceDeletion);
         }
 
-        public void EnsureAudiencesExist<T>(bool removeUnmanagedAudiences, Dictionary<string,string> additionalAudiences) where T : ProfileBase
+        public void EnsureAudiencesExist<T>(bool allowAudienceDeletion, Dictionary<string, string> additionalAudiences) where T : ProfileBase
         {
-            EnsureAudiencesExist(typeof(T), removeUnmanagedAudiences, additionalAudiences);
+            EnsureAudiencesExist(typeof(T), allowAudienceDeletion, additionalAudiences);
         }
 
-        public void EnsureAudiencesExist(Type profileType, bool removeUnmanagedAudiences)
+        public void EnsureAudiencesExist(Type profileType, bool allowAudienceDeletion)
         {
-            EnsureAudiencesExist(profileType, removeUnmanagedAudiences, new Dictionary<string, string>());
+            EnsureAudiencesExist(profileType, allowAudienceDeletion, new Dictionary<string, string>());
         }
 
         /// <summary>
         /// Create audiences specified as attributes
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public void EnsureAudiencesExist(Type profileType, bool removeUnmanagedAudiences, Dictionary<string, string> additionalAudiences)
+        public void EnsureAudiencesExist(Type profileType, bool allowAudienceDeletion, Dictionary<string, string> additionalAudiences)
         {
-            var audiences = new Dictionary<string, AudienceWrapper>();
+            var audiences = new Dictionary<string, AudienceSpec>();
 
             foreach (var pi in profileType.GetProperties())
             {
@@ -175,12 +175,15 @@ namespace NoCaml.UserProfiles
 
                     if (!audiences.ContainsKey(aa.AudienceName))
                     {
-                        audiences[aa.AudienceName] = new AudienceWrapper()
+                        audiences[aa.AudienceName] = new AudienceSpec()
                         {
                             Name = aa.AudienceName,
                             Description = aa.Description,
                             Operator = aa.MultiRuleOperator,
-                            Rules = aa.UpdateRules ? new List<Rule>() : null
+                            Rules = aa.UpdateRules ? new List<Rule>() : null,
+                            ShouldDelete = false,
+                            IsObsolete = false,
+                            PreviousNames = new List<string>()
                         };
                     }
 
@@ -226,32 +229,35 @@ namespace NoCaml.UserProfiles
                     }
                     else
                     {
-                        var a = new AudienceWrapper()
+                        var a = new AudienceSpec()
                         {
                             Name = name,
                             Description = name,
                             Operator = "AND",
-                            Rules = new List<Rule>()
+                            Rules = new List<Rule>(),
+                            ShouldDelete = false,
+                            IsObsolete = false,
+                            PreviousNames = new List<string>()
                         };
 
-                        WriteRules(parseTree, a.Rules);
+                        UpdateAudienceSpecFromParseTree(parseTree, a);
                         audiences[name] = a;
                     }
 
                 }
             }
 
-            EnsureAudiencesExist(audiences.Values, true, removeUnmanagedAudiences);
+            EnsureAudiencesExist(audiences.Values, true, allowAudienceDeletion);
 
 
         }
 
-        private void WriteRules(TinyPG.ParseNode n, List<Rule> rules)
+        private void UpdateAudienceSpecFromParseTree(TinyPG.ParseNode n, AudienceSpec audienceSpec)
         {
 
-            var matchedRule = n.Text.Contains(" ") ? n.Text.Substring(0, n.Text.IndexOf(" ")) : n.Text;
+            var nodeType = n.Text.Contains(" ") ? n.Text.Substring(0, n.Text.IndexOf(" ")) : n.Text;
             var value = n.Text.Contains("'") ? n.Text.Substring(n.Text.IndexOf("'") + 1, n.Text.LastIndexOf("'") - n.Text.IndexOf("'") - 1) : "";
-            if (matchedRule == "SimpleRule")
+            if (nodeType == "SimpleRule")
             {
                 var name = n.Nodes[0].Text.Substring(n.Nodes[0].Text.IndexOf("'") + 1, n.Nodes[0].Text.LastIndexOf("'") - n.Nodes[0].Text.IndexOf("'") - 1);
                 var op = n.Nodes[1].Nodes[0].Text.Substring(0, n.Nodes[1].Nodes[0].Text.IndexOf(" "));
@@ -261,39 +267,60 @@ namespace NoCaml.UserProfiles
                     : op == "Contains" ? "Contains"
                     : "=";
                 Debug.WriteLine(name + ", " + op + ", " + val);
-                rules.Add(new Rule(name, op, val));
+                audienceSpec.Rules.Add(new Rule(name, op, val));
             }
-            else if (matchedRule == "BROPEN")
+            else if (nodeType == "BROPEN")
             {
                 Debug.WriteLine("(");
-                rules.Add(new Rule(null, "(", null));
+                audienceSpec.Rules.Add(new Rule(null, "(", null));
             }
-            else if (matchedRule == "BRCLOSE")
+            else if (nodeType == "BRCLOSE")
             {
                 Debug.WriteLine(")");
-                rules.Add(new Rule(null, ")", null));
+                audienceSpec.Rules.Add(new Rule(null, ")", null));
             }
-            else if (matchedRule == "AND")
+            else if (nodeType == "AND")
             {
                 Debug.WriteLine("AND");
-                rules.Add(new Rule(null, "AND", null));
+                audienceSpec.Rules.Add(new Rule(null, "AND", null));
             }
-            else if (matchedRule == "OR")
+            else if (nodeType == "OR")
             {
                 Debug.WriteLine("OR");
-                rules.Add(new Rule(null, "OR", null));
+                audienceSpec.Rules.Add(new Rule(null, "OR", null));
+            }
+            else if (nodeType == "DeleteStatement")
+            {
+                Debug.WriteLine("DELETE");
+                audienceSpec.ShouldDelete = true;
+            }
+            else if (nodeType == "ObsoleteStatement")
+            {
+                Debug.WriteLine("OBSOLETE");
+                audienceSpec.IsObsolete = true;
+            }
+            else if (nodeType == "RenameStatement")
+            {
+                var oldName = n.Nodes[1].Text.Substring(n.Nodes[1].Text.IndexOf("'") + 2, n.Nodes[1].Text.LastIndexOf("'") - n.Nodes[1].Text.IndexOf("'") - 3);
+
+                Debug.WriteLine("Renamed from "+oldName);
+                audienceSpec.PreviousNames.Add(oldName);
             }
             else
             {
-                foreach (var n2 in n.Nodes) { WriteRules(n2, rules); };
+                foreach (var n2 in n.Nodes) { UpdateAudienceSpecFromParseTree(n2, audienceSpec); };
             }
 
 
         }
 
+        private void UpdateAudienceRules(AudienceSpec audienceSpec)
+        {
+
+        }
 
 
-        public void EnsureAudiencesExist(IEnumerable<AudienceWrapper> audiences, bool updateRules, bool removeUnmanagedAudiences)
+        public void EnsureAudiencesExist(IEnumerable<AudienceSpec> specifiedAudiences, bool updateRules, bool allowAudienceDeletion)
         {
             var adp = TAudience.GetProperty("AudienceDescription");
             var anp = TAudience.GetProperty("AudienceName");
@@ -303,10 +330,10 @@ namespace NoCaml.UserProfiles
 
             
             // get audience basic properties
-            var wrappedAudiences = WrappedAudiences.ToList();
+            var wrappedExistingAudiences = WrappedAudiences.ToList();
 
             // because the indexer is painfully slow
-            var cachedaudiences = Audiences.Cast<object>()
+            var cachedExistingAudiences = Audiences.Cast<object>()
                 // filter out the all site users audience which cannot be updated or removed
                 .Where(o=> (Guid)aip.GetValue(o, null) != Guid.Empty)
                 .ToDictionary(
@@ -315,54 +342,109 @@ namespace NoCaml.UserProfiles
                 );
 
 
-            var missing = audiences.Where(a => !cachedaudiences.ContainsKey(a.Name));
+            var missing = specifiedAudiences.Where(a => !cachedExistingAudiences.ContainsKey(a.Name));
 
-            var removedNames = cachedaudiences.Keys.Where(en => !audiences.Any(a => a.Name == en)).ToList();
+            var audiencesToDelete = new List<string>();
 
-
-
-            foreach (var na in audiences)
+            foreach (var audienceSpec in specifiedAudiences)
             {
-                if (na.Description == null) na.Description = na.Name;
-                object ea = null;
-                if (cachedaudiences.ContainsKey(na.Name)) {
-                    // ea = Audiences[na.Name];
-                    //ea = Audiences.GetType().GetProperty("Item", new Type[] { typeof(string)}).GetValue(Audiences, new object[] { na.Name });
-                    ea = cachedaudiences[na.Name];
-                }
-                bool changed = false;
 
-                if (ea == null)
+                if (audienceSpec.Description == null) audienceSpec.Description = audienceSpec.Name;
+
+                bool changed = false;
+                object actualAudience = null;                
+                if (cachedExistingAudiences.ContainsKey(audienceSpec.Name)) {
+                    actualAudience = cachedExistingAudiences[audienceSpec.Name];
+                }
+                if (actualAudience == null)
+                {
+                    // check for version of audience with obsolete prefix
+                    var prefixedName = "ZZZZ OBSOLETE " + audienceSpec.Name;
+                    if (cachedExistingAudiences.ContainsKey(prefixedName))
+                    {
+                        actualAudience = cachedExistingAudiences[prefixedName];
+                    }
+                }
+
+                if (actualAudience == null && audienceSpec.PreviousNames.Count > 0)
+                {
+                    // check for existing audience to be renamed
+                    foreach (var previousName in audienceSpec.PreviousNames)
+                    {
+                        if (cachedExistingAudiences.ContainsKey(previousName))
+                        {
+                            actualAudience = cachedExistingAudiences[previousName];
+                            break;
+                        }
+                    }
+                }
+
+                if (actualAudience == null && audienceSpec.IsObsolete || audienceSpec.ShouldDelete)
+                {
+                    // no need to create an obsolete or deleted audience
+                    continue;
+                }
+
+                if (actualAudience == null)
                 {
                     // new audience
-                    ea = Audiences.GetType().GetMethod("Create", new Type[] { typeof(string), typeof(string) }).Invoke(Audiences, new object[] { na.Name, na.Description });
+                    actualAudience = Audiences.GetType().GetMethod("Create", new Type[] { typeof(string), typeof(string) }).Invoke(Audiences, new object[] { audienceSpec.Name, audienceSpec.Description });
                     changed = true;
                 }
+
+                // make sure audience is correctly named
+
+                var existingAudienceName = // actualAudience.Name
+                    (string)anp.GetValue(actualAudience, null);
+
+                if (audienceSpec.ShouldDelete)
+                {
+                    audiencesToDelete.Add(existingAudienceName);
+                    // no need to update an audience that is about to be deleted
+                    continue;
+                }
+
+
+                var specifiedAudienceName =
+                    audienceSpec.IsObsolete ? "ZZZZ OBSOLETE " + audienceSpec.Name : audienceSpec.Name;
+
+
+                if (existingAudienceName != specifiedAudienceName)
+                {
+                    anp.SetValue(actualAudience, specifiedAudienceName, null);
+                    changed = true;
+                }
+                
+                // update audience operator if necessary
 
                 //ea.GroupOperation = 2 //Microsoft.Office.Server.Audience.AudienceGroupOperation.AUDIENCE_AND_OPERATION
-                var ngop = na.Operator == "OR" ? 1 : 2;
-                if ((int)agop.GetValue(ea, null) != ngop)
+                var ngop = audienceSpec.Operator == "OR" ? 1 : 2;
+                if ((int)agop.GetValue(actualAudience, null) != ngop)
                 {
-                    agop.SetValue(ea, ngop, null);
+                    agop.SetValue(actualAudience, ngop, null);
                     changed = true;
                 }
 
+                // Update description if necessary
 
-                if ((string)adp.GetValue(ea, null) != na.Description)
+                if ((string)adp.GetValue(actualAudience, null) != audienceSpec.Description)
                 {
-                    adp.SetValue(ea, na.Description, null);
+                    adp.SetValue(actualAudience, audienceSpec.Description, null);
                     changed = true;
                 }
-                if (updateRules && na.Rules != null && na.Rules.Count > 0)
+
+                // Update audience rules if there are any changes
+
+                if (updateRules && audienceSpec.Rules != null && audienceSpec.Rules.Count > 0)
                 {
                     // make sure there is a rules list
-                    if (arp.GetValue(ea, null) == null)
+                    if (arp.GetValue(actualAudience, null) == null)
                     {
-                        arp.SetValue(ea, new ArrayList(), null);
+                        arp.SetValue(actualAudience, new ArrayList(), null);
                     }
 
                     // check for rule update
-                    var erl = ((ArrayList)arp.GetValue(ea, null)).OfType<object>().ToList();
+                    var erl = ((ArrayList)arp.GetValue(actualAudience, null)).OfType<object>().ToList();
 
                     //  var ersl = erl.Select(r => r.LeftContent + r.Operator + r.RightContent);
                     //  var nrsl = na.Rules.Select(r => r.Left + r.Operator + r.Right);
@@ -374,7 +456,7 @@ namespace NoCaml.UserProfiles
                     // find removed rules
                     foreach (var er in erl.Where(r => (string)plc.GetValue(r, null) != null))
                     {
-                        var nr = na.Rules.Where(r => r.Left == (string)plc.GetValue(er, null) && r.Operator == (string)pop.GetValue(er, null) && r.Right == (string)prc.GetValue(er, null)).FirstOrDefault();
+                        var nr = audienceSpec.Rules.Where(r => r.Left == (string)plc.GetValue(er, null) && r.Operator == (string)pop.GetValue(er, null) && r.Right == (string)prc.GetValue(er, null)).FirstOrDefault();
                         if (nr == null)
                         {
                             changed = true;
@@ -382,7 +464,7 @@ namespace NoCaml.UserProfiles
                     }
 
 
-                    foreach (var nr in na.Rules)
+                    foreach (var nr in audienceSpec.Rules)
                     {
                         var er = erl.Where(r => nr.Left == (string)plc.GetValue(r, null) && nr.Operator == (string)pop.GetValue(r, null) && nr.Right == (string)prc.GetValue(r, null)).FirstOrDefault();
                         if (er == null)
@@ -395,12 +477,12 @@ namespace NoCaml.UserProfiles
                     if (changed)
                     {
                         var ci = TAudienceRuleComponent.GetConstructor(new Type[] { typeof(string), typeof(string), typeof(string) });
-                        arp.SetValue(ea, new ArrayList(), null);
-                        var ar = ((ArrayList)arp.GetValue(ea, null));
+                        arp.SetValue(actualAudience, new ArrayList(), null);
+                        var ar = ((ArrayList)arp.GetValue(actualAudience, null));
 
-                        foreach (var nr in na.Rules)
+                        foreach (var nr in audienceSpec.Rules)
                         {
-                            if (ar.Count > 0) ar.Add(ci.Invoke(new object[] { null, na.Operator, null }));
+                            if (ar.Count > 0) ar.Add(ci.Invoke(new object[] { null, audienceSpec.Operator, null }));
                             ar.Add(ci.Invoke(new object[] { nr.Left, nr.Operator, nr.Right }));
                         }
                     }
@@ -411,18 +493,18 @@ namespace NoCaml.UserProfiles
 
                 if (changed)
                 {
-                    TAudience.GetMethod("Commit").Invoke(ea, new object[] { });
+                    TAudience.GetMethod("Commit").Invoke(actualAudience, new object[] { });
                     
                     // This will run before the standard compilation cleans up any stalled jobs.
                     // However, changes don't happen often enough for this to matter.
-                    CompileAudience(na.Name, true);
+                    CompileAudience(audienceSpec.Name, true);
                 }
 
             }
 
-            if (removeUnmanagedAudiences && removedNames.Count > 0)
+            if (allowAudienceDeletion && audiencesToDelete.Count > 0)
             {
-                foreach (var rn in removedNames)
+                foreach (var rn in audiencesToDelete)
                 {
                     try
                     {                        

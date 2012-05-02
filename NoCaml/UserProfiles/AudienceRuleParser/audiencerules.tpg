@@ -13,12 +13,18 @@ AND 		-> "&&";
 OR 		-> "\\|\\|";
 NAME          -> @"\w+";
 VALUE         -> @"""[^""]*"""; //"[^"]*"
-
-
+SEP 		-> ";";
+WAS		-> "Was";
+OBSOLETE	-> "Obsolete";
+DELETE		-> "Delete";
 
 [Skip] WHITESPACE  -> @"\s+";
 
-Start 		-> (SimpleRule | CompositeRule) (CombineOperator (SimpleRule | CompositeRule))* EOF;
+Start 		-> (DeleteStatement SEP)? (ObsoleteStatement SEP)? (RenameStatement SEP)?  RulesStatement SEP* EOF;
+RenameStatement -> WAS VALUE;
+DeleteStatement -> DELETE;
+ObsoleteStatement -> OBSOLETE;
+RulesStatement -> (SimpleRule | CompositeRule) (CombineOperator (SimpleRule | CompositeRule))*;
 MatchOperator 	-> EQ | NEQ | CONTAINS;
 CombineOperator 	-> AND | OR;
 SimpleRule 	-> NAME MatchOperator VALUE;

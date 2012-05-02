@@ -75,6 +75,22 @@ namespace TinyPG
             Patterns.Add(TokenType.VALUE, regex);
             Tokens.Add(TokenType.VALUE);
 
+            regex = new Regex(";", RegexOptions.Compiled);
+            Patterns.Add(TokenType.SEP, regex);
+            Tokens.Add(TokenType.SEP);
+
+            regex = new Regex("Was", RegexOptions.Compiled);
+            Patterns.Add(TokenType.WAS, regex);
+            Tokens.Add(TokenType.WAS);
+
+            regex = new Regex("Obsolete", RegexOptions.Compiled);
+            Patterns.Add(TokenType.OBSOLETE, regex);
+            Tokens.Add(TokenType.OBSOLETE);
+
+            regex = new Regex("Delete", RegexOptions.Compiled);
+            Patterns.Add(TokenType.DELETE, regex);
+            Tokens.Add(TokenType.DELETE);
+
             regex = new Regex(@"\s+", RegexOptions.Compiled);
             Patterns.Add(TokenType.WHITESPACE, regex);
             Tokens.Add(TokenType.WHITESPACE);
@@ -204,24 +220,32 @@ namespace TinyPG
 
             //Non terminal tokens:
             Start   = 2,
-            MatchOperator= 3,
-            CombineOperator= 4,
-            SimpleRule= 5,
-            CompositeRule= 6,
-            Rule    = 7,
+            RenameStatement= 3,
+            DeleteStatement= 4,
+            ObsoleteStatement= 5,
+            RulesStatement= 6,
+            MatchOperator= 7,
+            CombineOperator= 8,
+            SimpleRule= 9,
+            CompositeRule= 10,
+            Rule    = 11,
 
             //Terminal tokens:
-            BROPEN  = 8,
-            BRCLOSE = 9,
-            EOF     = 10,
-            EQ      = 11,
-            NEQ     = 12,
-            CONTAINS= 13,
-            AND     = 14,
-            OR      = 15,
-            NAME    = 16,
-            VALUE   = 17,
-            WHITESPACE= 18
+            BROPEN  = 12,
+            BRCLOSE = 13,
+            EOF     = 14,
+            EQ      = 15,
+            NEQ     = 16,
+            CONTAINS= 17,
+            AND     = 18,
+            OR      = 19,
+            NAME    = 20,
+            VALUE   = 21,
+            SEP     = 22,
+            WAS     = 23,
+            OBSOLETE= 24,
+            DELETE  = 25,
+            WHITESPACE= 26
     }
 
     public class Token

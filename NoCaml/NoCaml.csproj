@@ -123,6 +123,7 @@
     <Compile Include="UserProfiles\AudienceRuleParser\Parser.cs" />
     <Compile Include="UserProfiles\AudienceRuleParser\ParseTree.cs" />
     <Compile Include="UserProfiles\AudienceRuleParser\Scanner.cs" />
+    <Compile Include="UserProfiles\AudienceSpec.cs" />
     <Compile Include="UserProfiles\AudienceWrapper.cs" />
     <Compile Include="UserProfiles\ProfilePropertySourceLogAttribute.cs" />
     <Compile Include="UserProfiles\ProfilePropertyIndexAttribute.cs" />

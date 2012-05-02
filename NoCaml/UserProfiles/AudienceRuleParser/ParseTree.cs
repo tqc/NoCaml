@@ -170,6 +170,18 @@ namespace TinyPG
                 case TokenType.Start:
                     Value = EvalStart(tree, paramlist);
                     break;
+                case TokenType.RenameStatement:
+                    Value = EvalRenameStatement(tree, paramlist);
+                    break;
+                case TokenType.DeleteStatement:
+                    Value = EvalDeleteStatement(tree, paramlist);
+                    break;
+                case TokenType.ObsoleteStatement:
+                    Value = EvalObsoleteStatement(tree, paramlist);
+                    break;
+                case TokenType.RulesStatement:
+                    Value = EvalRulesStatement(tree, paramlist);
+                    break;
                 case TokenType.MatchOperator:
                     Value = EvalMatchOperator(tree, paramlist);
                     break;
@@ -196,6 +208,26 @@ namespace TinyPG
         protected virtual object EvalStart(ParseTree tree, params object[] paramlist)
         {
             return "Could not interpret input; no semantics implemented.";
+        }
+
+        protected virtual object EvalRenameStatement(ParseTree tree, params object[] paramlist)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected virtual object EvalDeleteStatement(ParseTree tree, params object[] paramlist)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected virtual object EvalObsoleteStatement(ParseTree tree, params object[] paramlist)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected virtual object EvalRulesStatement(ParseTree tree, params object[] paramlist)
+        {
+            throw new NotImplementedException();
         }
 
         protected virtual object EvalMatchOperator(ParseTree tree, params object[] paramlist)
