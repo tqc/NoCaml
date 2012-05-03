@@ -148,11 +148,67 @@ namespace NoCaml.UserProfiles
             EnsureAudiencesExist(profileType, allowAudienceDeletion, new Dictionary<string, string>());
         }
 
+        public static List<AudienceSpec> ParseAudienceSpecs(Dictionary<string, string> stringspecs)
+        {
+            var result = new List<AudienceSpec>();
+
+            if (stringspecs.Count > 0)
+            {
+                var scanner = new TinyPG.Scanner();
+                var parser = new TinyPG.Parser(scanner);
+
+                // override the definitions from the code
+                foreach (var kv in stringspecs)
+                {
+                    var name = kv.Key;
+                    var ruleExpression = kv.Value;
+                    if (string.IsNullOrEmpty(ruleExpression)) continue;
+
+
+                    var parseTree = parser.Parse(ruleExpression);
+                    if (parseTree.Errors.Count > 0)
+                    {
+                        foreach (var err in parseTree.Errors)
+                        {
+                            // probably should have some real logging here
+                            Debug.WriteLine(err.Message);
+                        }
+                        continue;
+                    }
+                    else
+                    {
+                        var a = new AudienceSpec()
+                        {
+                            Name = name,
+                            Description = name,
+                            Operator = "AND",
+                            Rules = new List<Rule>(),
+                            ShouldDelete = false,
+                            IsObsolete = false,
+                            PreviousNames = new List<string>()
+                        };
+
+                        UpdateAudienceSpecFromParseTree(parseTree, a);
+
+                        result.Add(a);
+                    }
+
+                }
+            }
+
+            return result;
+        }
+
+        public void EnsureAudiencesExist(Type profileType, bool allowAudienceDeletion, Dictionary<string, string> additionalAudiences)
+        {
+            EnsureAudiencesExist(profileType, allowAudienceDeletion, ParseAudienceSpecs(additionalAudiences));
+        }
+
         /// <summary>
         /// Create audiences specified as attributes
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public void EnsureAudiencesExist(Type profileType, bool allowAudienceDeletion, Dictionary<string, string> additionalAudiences)
+        public void EnsureAudiencesExist(Type profileType, bool allowAudienceDeletion, List<AudienceSpec> additionalAudiences)
         {
             var audiences = new Dictionary<string, AudienceSpec>();
 
@@ -204,63 +260,25 @@ namespace NoCaml.UserProfiles
 
             }
 
-            if (additionalAudiences.Count > 0)
+            foreach (var a in additionalAudiences)
             {
-                var scanner = new TinyPG.Scanner();
-                var parser = new TinyPG.Parser(scanner);
-
-                // override the definitions from the code
-                foreach (var kv in additionalAudiences)
+                // remove audience specs using the previous names so we can override audiences 
+                //defined with attributes
+                foreach (var pn in a.PreviousNames)
                 {
-                    var name = kv.Key;
-                    var ruleExpression = kv.Value;
-                    if (string.IsNullOrEmpty(ruleExpression)) continue;
-
-
-                    var parseTree = parser.Parse(ruleExpression);
-                    if (parseTree.Errors.Count > 0)
-                    {
-                        foreach (var err in parseTree.Errors)
-                        {
-                            // probably should have some real logging here
-                            Debug.WriteLine(err.Message);
-                        }
-                        continue;
-                    }
-                    else
-                    {
-                        var a = new AudienceSpec()
-                        {
-                            Name = name,
-                            Description = name,
-                            Operator = "AND",
-                            Rules = new List<Rule>(),
-                            ShouldDelete = false,
-                            IsObsolete = false,
-                            PreviousNames = new List<string>()
-                        };
-
-                        UpdateAudienceSpecFromParseTree(parseTree, a);
-                        
-                        // remove audience specs using the previous names so we can override audiences 
-                        //defined with attributes
-                        foreach (var pn in a.PreviousNames)
-                        {
-                            if (audiences.ContainsKey(pn)) audiences.Remove(pn);
-                        }
-
-                        audiences[name] = a;
-                    }
-
+                    if (audiences.ContainsKey(pn)) audiences.Remove(pn);
                 }
+
+                audiences[a.Name] = a;
             }
+
 
             EnsureAudiencesExist(audiences.Values, true, allowAudienceDeletion);
 
 
         }
 
-        private void UpdateAudienceSpecFromParseTree(TinyPG.ParseNode n, AudienceSpec audienceSpec)
+        private static void UpdateAudienceSpecFromParseTree(TinyPG.ParseNode n, AudienceSpec audienceSpec)
         {
 
             var nodeType = n.Text.Contains(" ") ? n.Text.Substring(0, n.Text.IndexOf(" ")) : n.Text;

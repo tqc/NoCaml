@@ -50,6 +50,15 @@ namespace NoCaml.UserProfiles
         protected UserProfileWrapper Profile { get; set; }
         protected UserProfileManagerWrapper UserProfileManager { get; set; }
 
+        /// <summary>
+        /// Custom audience specs, to be overridden by subclasses which can access the list where
+        /// audience specs are stored. will generally be backed by a static field on the subclass.
+        /// </summary>
+        public virtual List<AudienceSpec> AudienceSpecs
+        {
+            get { return new List<AudienceSpec>(); }
+        }
+
 
         /// <summary>
         /// A thread safe stack that holds at most one instance of each audience name
