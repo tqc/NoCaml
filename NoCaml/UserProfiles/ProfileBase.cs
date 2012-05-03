@@ -319,37 +319,6 @@ namespace NoCaml.UserProfiles
                 PartialLoadFunctions = new Dictionary<string, Func<string, object>>();
                 SaveFunctions = new Dictionary<string, Func<object, object>>();
 
-                
-
-
-
-            //    RegisterCustomPropertyLoader<ProfileBase, Dictionary<string, string>>(p => p.HashLog,
-            //ppvc =>
-            //{
-            //    var sl = (string)ppvc.Value;
-            //    var dsl = new Dictionary<string, string>();
-            //    if (!string.IsNullOrEmpty(sl))
-            //    {
-            //        var ll = sl.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-            //        foreach (var l in ll)
-            //        {
-            //            if (!l.Contains(":")) continue;
-            //            if (l.Contains("<")) continue;
-            //            var cl = l.Split(':');
-            //            var pn = cl[0].Trim();
-            //            var cs = cl[1].Trim();
-            //            dsl.Add(pn, cs);
-            //        }
-
-            //    }
-            //    return dsl;
-            //},
-            //null,
-            //v => string.Join(
-            //    "\n",
-            //    v.Select(kv => kv.Key + ":" + kv.Value).ToArray()
-            //    ));
-
                 RegisterCustomLoadSaveFunctions();
 
                 RegisterAllLoadFunctions();
@@ -382,9 +351,11 @@ namespace NoCaml.UserProfiles
             public List<ProfilePropertySourceAttribute> ValidSources;
             public ProfilePropertySourceLogAttribute LogSettings;
 
+            public PropertyAction(PropertyInfo pi, ProfilePropertyStorageAttribute psa, ProfilePropertyIndexAttribute pia) :
+                this(pi, psa, pia, new List<AudienceSpec>()) { }
            
 
-            public PropertyAction(PropertyInfo pi, ProfilePropertyStorageAttribute psa,ProfilePropertyIndexAttribute pia)
+            public PropertyAction(PropertyInfo pi, ProfilePropertyStorageAttribute psa,ProfilePropertyIndexAttribute pia, List<AudienceSpec> audienceSpecs)
             {
                 PropertyInfo = pi;
                 DataPropertyName = psa.PropertyName;
@@ -458,8 +429,23 @@ namespace NoCaml.UserProfiles
                     SaveAction = (dest) => dest.SetIfChanged(PropertyInfo, DataPropertyName, AffectedAudiences, o => o);
                 }
 
+                var renamedAudiences = audienceSpecs.SelectMany(aspec => aspec.PreviousNames).ToList();
+
                 AffectedAudiences = PropertyInfo.GetCustomAttributes(typeof(AudienceAttribute), false)
-           .Cast<AudienceAttribute>().ToList();
+           .Cast<AudienceAttribute>()
+           .Where(aa => !renamedAudiences.Contains(aa.AudienceName)) 
+           .Union(          
+                audienceSpecs.SelectMany(aspec => 
+                    aspec.Rules
+                    .Where(r=>r.Left == DataPropertyName)
+                    .Select(r=> new AudienceAttribute(
+                        aspec.Name,
+                        r.Operator == "=" ? AudienceRuleType.Equal : AudienceRuleType.NotEqual,
+                        r.Right
+                        ))
+                    ))
+                    .ToList();
+
 
                 ValidSources = PropertyInfo.GetCustomAttributes(false)
                     .Where(a => a is ProfilePropertySourceAttribute)
@@ -472,6 +458,25 @@ namespace NoCaml.UserProfiles
 
             }
 
+
+            internal List<string> GetChangedAudiences(string oldval, object newval)
+            {
+                var result = new List<string>();
+                foreach (var aa in AffectedAudiences)
+                {
+                    if (string.IsNullOrEmpty(aa.Filter)
+                        || (PropertyInfo.PropertyType == typeof(bool)) // boolean filters are always affected if the value changes
+                        || (oldval != null && oldval.Contains(aa.Filter))
+                        || (newval is string && newval != null && ((string)newval).Contains(aa.Filter))
+                        )
+                    {
+                        RecordChangedAudience(aa.AudienceName);
+                    }
+                }
+
+
+                return result;
+            }
         }
 
         private void RegisterAllLoadFunctions()
@@ -784,14 +789,17 @@ namespace NoCaml.UserProfiles
     .Select(a => a.PropertyName)
     .FirstOrDefault();
             if (string.IsNullOrEmpty(propname)) return;
-
-            var aal = pi.GetCustomAttributes(typeof(AudienceAttribute), false)
-            .Cast<AudienceAttribute>().ToList();
-
-            SetIfChanged(pi, propname, aal, fval);
+           
+            SetIfChanged(pi, propname, fval);
         }
 
+        [Obsolete]
         private void SetIfChanged(PropertyInfo pi, string propname, List<AudienceAttribute> audienceAttributes, Func<object, object> fval)
+        {
+            SetIfChanged(pi, propname, fval);
+        }
+
+        private void SetIfChanged(PropertyInfo pi, string propname, Func<object, object> fval)
         {
             // if not in changed properties list, do not save
             if (!ChangedProperties.Contains(pi.Name)) return;
@@ -833,17 +841,15 @@ namespace NoCaml.UserProfiles
             }
 
             // queue audience update if necessary
-            foreach (var aa in audienceAttributes)
+            var plf = AllLoadFunctions.Where(lf => lf.PropertyInfo.Name == pi.Name).FirstOrDefault();
+            if (plf != null)
             {
-                if (string.IsNullOrEmpty(aa.Filter)
-                    || (oldval != null && oldval.Contains(aa.Filter))
-                    || (pi.PropertyType == typeof(bool)) // boolean filters are always affected if the value changes
-                    || (val is string && val != null && ((string)val).Contains(aa.Filter))
-                    )
+                foreach (var audienceName in plf.GetChangedAudiences(oldval, val))
                 {
-                    RecordChangedAudience(aa.AudienceName);
+                    RecordChangedAudience(audienceName);
                 }
             }
+
 
         }
 
