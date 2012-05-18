@@ -151,6 +151,12 @@ namespace NoCaml
 
         protected virtual void SaveProperties(SPListItem item)
         {
+
+            if (this is IAudienced && item.Fields.ContainsField("Target Audiences"))
+            {
+                item["Target Audiences"] = ((IAudienced)this).TargetAudiences;
+            }
+
             foreach (var p in this.GetType().GetProperties())
             {
                 var pa = SchemaManager.GetFieldAttribute(p, true, false);
