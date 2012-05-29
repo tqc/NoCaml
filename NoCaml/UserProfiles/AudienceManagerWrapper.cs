@@ -502,10 +502,18 @@ namespace NoCaml.UserProfiles
                         arp.SetValue(actualAudience, new ArrayList(), null);
                         var ar = ((ArrayList)arp.GetValue(actualAudience, null));
 
+                        var operatorNeeded = false;
+
                         foreach (var nr in audienceSpec.Rules)
                         {
-                            if (ar.Count > 0) ar.Add(ci.Invoke(new object[] { null, audienceSpec.Operator, null }));
+
+                            if (operatorNeeded && nr.Left != null)
+                            {
+                                ar.Add(ci.Invoke(new object[] { null, audienceSpec.Operator, null }));
+                            }
                             ar.Add(ci.Invoke(new object[] { nr.Left, nr.Operator, nr.Right }));
+                            operatorNeeded = nr.Left != null;
+
                         }
                     }
 
