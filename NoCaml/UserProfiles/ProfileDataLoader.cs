@@ -427,7 +427,7 @@ namespace NoCaml.UserProfiles
 
         }
 
-        private static void LogMessage(string source, string message, string detail)
+        public static void LogMessage(string source, string message, string detail)
         {
             if (Log != null)
             {                         
@@ -493,7 +493,7 @@ namespace NoCaml.UserProfiles
 
         private object lidSync = new object();
 
-        protected Dictionary<string, Dictionary<string, IProfile>> Indexes { get; set; }
+        public static Dictionary<string, Dictionary<string, IProfile>> Indexes { get; set; }
 
         public static void RunBatchUpdate(IEnumerable<ProfileDataLoader> pdls, List<IProfile> profiles)
         {
@@ -518,11 +518,13 @@ namespace NoCaml.UserProfiles
 
             LogMessage("Profile Import", "Initialising Loaders", "");
 
+            ProfileDataLoader.Indexes = indexes;
+
             foreach (var pdl in pdls)
             {
                 try
                 {
-                    pdl.Indexes = indexes;
+                  //  pdl.Indexes = indexes;
                     pdl.LoaderInitialized = false;
                     pdl.BulkDataAvailable = pdl.LoadBulkData();
                     pdl.UpdateProfileIndexes(profiles);
