@@ -436,7 +436,7 @@ namespace NoCaml.UserProfiles
 
         }
 
-        private static void LogException(string source, Exception ex)
+        public static void LogException(string source, Exception ex)
         {
             if (Log != null)
             {
