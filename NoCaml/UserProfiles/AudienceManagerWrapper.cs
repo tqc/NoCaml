@@ -292,44 +292,44 @@ namespace NoCaml.UserProfiles
                     : op == "NEQ" ? "<>"
                     : op == "Contains" ? "Contains"
                     : "=";
-                Debug.WriteLine(name + ", " + op + ", " + val);
+                //Debug.WriteLine(name + ", " + op + ", " + val);
                 audienceSpec.Rules.Add(new Rule(name, op, val));
             }
             else if (nodeType == "BROPEN")
             {
-                Debug.WriteLine("(");
+                //Debug.WriteLine("(");
                 audienceSpec.Rules.Add(new Rule(null, "(", null));
             }
             else if (nodeType == "BRCLOSE")
             {
-                Debug.WriteLine(")");
+                //Debug.WriteLine(")");
                 audienceSpec.Rules.Add(new Rule(null, ")", null));
             }
             else if (nodeType == "AND")
             {
-                Debug.WriteLine("AND");
+          //      Debug.WriteLine("AND");
                 audienceSpec.Rules.Add(new Rule(null, "AND", null));
             }
             else if (nodeType == "OR")
             {
-                Debug.WriteLine("OR");
+      //          Debug.WriteLine("OR");
                 audienceSpec.Rules.Add(new Rule(null, "OR", null));
             }
             else if (nodeType == "DeleteStatement")
             {
-                Debug.WriteLine("DELETE");
+       //         Debug.WriteLine("DELETE");
                 audienceSpec.ShouldDelete = true;
             }
             else if (nodeType == "ObsoleteStatement")
             {
-                Debug.WriteLine("OBSOLETE");
+       //         Debug.WriteLine("OBSOLETE");
                 audienceSpec.IsObsolete = true;
             }
             else if (nodeType == "RenameStatement")
             {
                 var oldName = n.Nodes[1].Text.Substring(n.Nodes[1].Text.IndexOf("'") + 2, n.Nodes[1].Text.LastIndexOf("'") - n.Nodes[1].Text.IndexOf("'") - 3);
 
-                Debug.WriteLine("Renamed from "+oldName);
+    //            Debug.WriteLine("Renamed from "+oldName);
                 audienceSpec.PreviousNames.Add(oldName);
             }
             else
@@ -502,10 +502,18 @@ namespace NoCaml.UserProfiles
                         arp.SetValue(actualAudience, new ArrayList(), null);
                         var ar = ((ArrayList)arp.GetValue(actualAudience, null));
 
+                        var operatorNeeded = false;
+
                         foreach (var nr in audienceSpec.Rules)
                         {
-                            if (ar.Count > 0) ar.Add(ci.Invoke(new object[] { null, audienceSpec.Operator, null }));
+
+                            if (operatorNeeded && nr.Left != null)
+                            {
+                                ar.Add(ci.Invoke(new object[] { null, audienceSpec.Operator, null }));
+                            }
                             ar.Add(ci.Invoke(new object[] { nr.Left, nr.Operator, nr.Right }));
+                            operatorNeeded = nr.Left != null;
+
                         }
                     }
 
