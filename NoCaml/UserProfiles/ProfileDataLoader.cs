@@ -420,14 +420,14 @@ namespace NoCaml.UserProfiles
         }
 
 
-        public static Action<string, string, string> Log { get; set; }
+        public static Action<string, string, string> Log { private get; set; }
 
         protected virtual void WriteExportFile()
         {
 
         }
 
-        private static void LogMessage(string source, string message, string detail)
+        public static void LogMessage(string source, string message, string detail)
         {
             if (Log != null)
             {                         
@@ -436,7 +436,7 @@ namespace NoCaml.UserProfiles
 
         }
 
-        private static void LogException(string source, Exception ex)
+        public static void LogException(string source, Exception ex)
         {
             if (Log != null)
             {
