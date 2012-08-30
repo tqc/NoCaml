@@ -381,11 +381,19 @@ namespace NoCaml.UserProfiles
                 if (actualAudience == null)
                 {
                     // check for version of audience with obsolete prefix
-                    var prefixedName = "ZZZZ OBSOLETE " + audienceSpec.Name;
+                    var prefixedName = "ZZZ " + audienceSpec.Name;
                     if (cachedExistingAudiences.ContainsKey(prefixedName))
                     {
                         actualAudience = cachedExistingAudiences[prefixedName];
                     }
+
+                    var oldPrefixedName = "ZZZZ OBSOLETE " + audienceSpec.Name;
+                    if (cachedExistingAudiences.ContainsKey(oldPrefixedName))
+                    {
+                        actualAudience = cachedExistingAudiences[oldPrefixedName];
+                    }
+
+
                 }
 
                 if (actualAudience == null && audienceSpec.PreviousNames.Count > 0)
@@ -428,7 +436,7 @@ namespace NoCaml.UserProfiles
 
 
                 var specifiedAudienceName =
-                    audienceSpec.IsObsolete ? "ZZZZ OBSOLETE " + audienceSpec.Name : audienceSpec.Name;
+                    audienceSpec.IsObsolete ? "ZZZ " + audienceSpec.Name : audienceSpec.Name;
 
 
                 if (existingAudienceName != specifiedAudienceName)
