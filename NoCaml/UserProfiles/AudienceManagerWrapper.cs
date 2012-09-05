@@ -150,6 +150,9 @@ namespace NoCaml.UserProfiles
 
         public static List<AudienceSpec> ParseAudienceSpecs(Dictionary<string, string> stringspecs)
         {
+
+            ProfileDataLoader.LogMessage("Audience Update", "Parsing Audience Specs", "audiencesToDelete: " + stringspecs.Where(kv => kv.Value.Contains("Delete")).Count());
+
             var result = new List<AudienceSpec>();
 
             if (stringspecs.Count > 0)
@@ -195,6 +198,8 @@ namespace NoCaml.UserProfiles
 
                 }
             }
+
+            ProfileDataLoader.LogMessage("Audience Update", "Parsed Audience Specs", "audiencesToDelete: " + result.Where(asi=>asi.ShouldDelete).Count());
 
             return result;
         }
@@ -344,6 +349,8 @@ namespace NoCaml.UserProfiles
 
         public void EnsureAudiencesExist(IEnumerable<AudienceSpec> specifiedAudiences, bool updateRules, bool allowAudienceDeletion)
         {
+            ProfileDataLoader.LogMessage("Audience Update", "Starting Audience Update", "UpdateRules: " + updateRules + ", allowAudienceDeletion: " + allowAudienceDeletion + ", audiencesToDelete: " + specifiedAudiences.Where(asi=>asi.ShouldDelete).Count());
+
             var adp = TAudience.GetProperty("AudienceDescription");
             var anp = TAudience.GetProperty("AudienceName");
             var aip = TAudience.GetProperty("AudienceID");
@@ -368,8 +375,14 @@ namespace NoCaml.UserProfiles
 
             var audiencesToDelete = new List<string>();
 
+            var maxlogs = 0;
+            var loggedaudiences = 0;
+
             foreach (var audienceSpec in specifiedAudiences)
             {
+                var shouldlog = audienceSpec.ShouldDelete && loggedaudiences < maxlogs;
+                if (shouldlog) loggedaudiences++;
+                if (shouldlog) ProfileDataLoader.LogMessage("Audience Update", "Updating " + audienceSpec.Name, "");
 
                 if (audienceSpec.Description == null) audienceSpec.Description = audienceSpec.Name;
 
@@ -377,6 +390,8 @@ namespace NoCaml.UserProfiles
                 object actualAudience = null;                
                 if (cachedExistingAudiences.ContainsKey(audienceSpec.Name)) {
                     actualAudience = cachedExistingAudiences[audienceSpec.Name];
+                    if (shouldlog) ProfileDataLoader.LogMessage("Audience Update", "Found " + audienceSpec.Name, "");
+
                 }
                 if (actualAudience == null)
                 {
@@ -385,12 +400,14 @@ namespace NoCaml.UserProfiles
                     if (cachedExistingAudiences.ContainsKey(prefixedName))
                     {
                         actualAudience = cachedExistingAudiences[prefixedName];
+                        if (shouldlog) ProfileDataLoader.LogMessage("Audience Update", "Found " + prefixedName, "");
                     }
 
                     var oldPrefixedName = "ZZZZ OBSOLETE " + audienceSpec.Name;
                     if (cachedExistingAudiences.ContainsKey(oldPrefixedName))
                     {
                         actualAudience = cachedExistingAudiences[oldPrefixedName];
+                        if (shouldlog) ProfileDataLoader.LogMessage("Audience Update", "Found " + oldPrefixedName, "");
                     }
 
 
@@ -398,6 +415,8 @@ namespace NoCaml.UserProfiles
 
                 if (actualAudience == null && audienceSpec.PreviousNames.Count > 0)
                 {
+                    if (shouldlog) ProfileDataLoader.LogMessage("Audience Update", "Looking for previous names", "");
+
                     // check for existing audience to be renamed
                     foreach (var previousName in audienceSpec.PreviousNames)
                     {
@@ -409,14 +428,18 @@ namespace NoCaml.UserProfiles
                     }
                 }
 
-                if (actualAudience == null && audienceSpec.IsObsolete || audienceSpec.ShouldDelete)
+                if (actualAudience == null && (audienceSpec.IsObsolete || audienceSpec.ShouldDelete))
                 {
+                    if (shouldlog) ProfileDataLoader.LogMessage("Audience Update", "Deleted/Obsolete audience " + audienceSpec.Name+" not found", "");
+
                     // no need to create an obsolete or deleted audience
                     continue;
                 }
 
                 if (actualAudience == null)
                 {
+                    if (shouldlog) ProfileDataLoader.LogMessage("Audience Update", "Creating Audience " + audienceSpec.Name, "");
+
                     // new audience
                     actualAudience = Audiences.GetType().GetMethod("Create", new Type[] { typeof(string), typeof(string) }).Invoke(Audiences, new object[] { audienceSpec.Name, audienceSpec.Description });
                     changed = true;
@@ -424,12 +447,19 @@ namespace NoCaml.UserProfiles
 
                 // make sure audience is correctly named
 
+
                 var existingAudienceName = // actualAudience.Name
                     (string)anp.GetValue(actualAudience, null);
 
+                if (shouldlog) ProfileDataLoader.LogMessage("Audience Update", "Actual name is " + existingAudienceName, "");
+
+
                 if (audienceSpec.ShouldDelete)
                 {
+
                     audiencesToDelete.Add(existingAudienceName);
+                    if (shouldlog) ProfileDataLoader.LogMessage("Audience Update", "added " + existingAudienceName+" to deletion list", "");
+
                     // no need to update an audience that is about to be deleted
                     continue;
                 }
@@ -441,6 +471,8 @@ namespace NoCaml.UserProfiles
 
                 if (existingAudienceName != specifiedAudienceName)
                 {
+                    if (shouldlog) ProfileDataLoader.LogMessage("Audience Update", "Renaming " + existingAudienceName+" to "+specifiedAudienceName, "");
+
                     anp.SetValue(actualAudience, specifiedAudienceName, null);
                     changed = true;
                 }
@@ -467,6 +499,8 @@ namespace NoCaml.UserProfiles
 
                 if (updateRules && audienceSpec.Rules != null && audienceSpec.Rules.Count > 0)
                 {
+                    if (shouldlog) ProfileDataLoader.LogMessage("Audience Update", "Updating rules for " + audienceSpec.Name, "");
+
                     // make sure there is a rules list
                     if (arp.GetValue(actualAudience, null) == null)
                     {
@@ -540,18 +574,25 @@ namespace NoCaml.UserProfiles
 
             }
 
+            ProfileDataLoader.LogMessage("Audience Update", "Ready to delete audiences", "AllowAudienceDeletion: "+allowAudienceDeletion+", audiencesToDelete: "+audiencesToDelete.Count);
             if (allowAudienceDeletion && audiencesToDelete.Count > 0)
             {
                 foreach (var rn in audiencesToDelete)
                 {
                     try
-                    {                        
+                    {
                         //Audiences.Remove(rn)
                         Audiences.GetType().GetMethod("Remove", new Type[] { typeof(string) }).Invoke(Audiences, new object[] { rn });
                     }
                     catch (TargetInvocationException tie)
                     {
-                        throw new Exception("Error removing audience "+rn +" - "+ tie.InnerException.Message, tie.InnerException);
+                        ProfileDataLoader.LogException("Audience Update", tie.InnerException);
+
+                        throw new Exception("Error removing audience " + rn + " - " + tie.InnerException.Message, tie.InnerException);
+                    }
+                    catch (Exception ex)
+                    {
+                        ProfileDataLoader.LogException("Audience Update", ex);
                     }
                 }
 
