@@ -318,6 +318,7 @@ namespace NoCaml.UserProfiles
             else if (nodeType == "OR")
             {
       //          Debug.WriteLine("OR");
+                audienceSpec.Operator = "OR";
                 audienceSpec.Rules.Add(new Rule(null, "OR", null));
             }
             else if (nodeType == "DeleteStatement")
@@ -479,9 +480,14 @@ namespace NoCaml.UserProfiles
                 
                 // update audience operator if necessary
 
+
                 //ea.GroupOperation = 2 //Microsoft.Office.Server.Audience.AudienceGroupOperation.AUDIENCE_AND_OPERATION
+                // If the audience is complex it will be automatically changed to mix mode when updating the rules so and/or is enough here.
                 var ngop = audienceSpec.Operator == "OR" ? 1 : 2;
-                if ((int)agop.GetValue(actualAudience, null) != ngop)
+                var currentGroupOperation = (int)agop.GetValue(actualAudience, null);
+                // set group operation only if changed
+                // also, do not update if AUDIENCE_MIX_OPERATION - SharePoint doesn't seem to support returning to simple mode
+                if (currentGroupOperation != ngop && currentGroupOperation != 3)
                 {
                     agop.SetValue(actualAudience, ngop, null);
                     changed = true;
