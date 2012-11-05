@@ -55,6 +55,22 @@ namespace TinyPG
             Patterns.Add(TokenType.NEQ, regex);
             Tokens.Add(TokenType.NEQ);
 
+            regex = new Regex(">", RegexOptions.Compiled);
+            Patterns.Add(TokenType.GT, regex);
+            Tokens.Add(TokenType.GT);
+
+            regex = new Regex("<", RegexOptions.Compiled);
+            Patterns.Add(TokenType.LT, regex);
+            Tokens.Add(TokenType.LT);
+
+            regex = new Regex(">=", RegexOptions.Compiled);
+            Patterns.Add(TokenType.GTE, regex);
+            Tokens.Add(TokenType.GTE);
+
+            regex = new Regex("<=", RegexOptions.Compiled);
+            Patterns.Add(TokenType.LTE, regex);
+            Tokens.Add(TokenType.LTE);
+
             regex = new Regex("contains", RegexOptions.Compiled);
             Patterns.Add(TokenType.CONTAINS, regex);
             Tokens.Add(TokenType.CONTAINS);
@@ -236,16 +252,20 @@ namespace TinyPG
             EOF     = 14,
             EQ      = 15,
             NEQ     = 16,
-            CONTAINS= 17,
-            AND     = 18,
-            OR      = 19,
-            NAME    = 20,
-            VALUE   = 21,
-            SEP     = 22,
-            WAS     = 23,
-            OBSOLETE= 24,
-            DELETE  = 25,
-            WHITESPACE= 26
+            GT      = 17,
+            LT      = 18,
+            GTE     = 19,
+            LTE     = 20,
+            CONTAINS= 21,
+            AND     = 22,
+            OR      = 23,
+            NAME    = 24,
+            VALUE   = 25,
+            SEP     = 26,
+            WAS     = 27,
+            OBSOLETE= 28,
+            DELETE  = 29,
+            WHITESPACE= 30
     }
 
     public class Token

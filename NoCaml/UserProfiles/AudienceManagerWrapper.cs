@@ -295,6 +295,10 @@ namespace NoCaml.UserProfiles
                 var val = n.Nodes[2].Text.Substring(n.Nodes[2].Text.IndexOf("'") + 2, n.Nodes[2].Text.LastIndexOf("'") - n.Nodes[2].Text.IndexOf("'") - 3);
                 op = op == "EQ" ? "="
                     : op == "NEQ" ? "<>"
+                    : op == "GT" ? ">"
+                    : op == "LT" ? "<"
+                    : op == "LTE" ? "<="
+                    : op == "GTE" ? ">="
                     : op == "Contains" ? "Contains"
                     : "=";
                 //Debug.WriteLine(name + ", " + op + ", " + val);
