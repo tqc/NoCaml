@@ -47,12 +47,12 @@ namespace NoCaml.UserProfiles
             public Func<TProfile, TSource, object> ValueFunction { get; set; }
             public bool IsValid { get; set; }
 
-            public LoadablePropertyDetails(Expression<Func<TProfile, object>> expr, Func<TProfile, TSource, object> val, string sourceName, bool updateForNullSource, bool runInSecondaryUpdate)
+            public LoadablePropertyDetails(Type concreteProfileType, Expression<Func<TProfile, object>> expr, Func<TProfile, TSource, object> val, string sourceName, bool updateForNullSource, bool runInSecondaryUpdate)
             {
                 IsValid = true;
                 var n = expr.Body as MemberExpression;
                 if (expr.Body.NodeType == ExpressionType.Convert) n = ((UnaryExpression)expr.Body).Operand as MemberExpression;
-                PropertyInfo = n.Member as PropertyInfo;
+                PropertyInfo = concreteProfileType.GetProperty(n.Member.Name);
                 var pial = PropertyInfo.GetCustomAttributes(true).Where(a => a is ProfilePropertySourceAttribute).Cast<ProfilePropertySourceAttribute>();
                 var sa = pial.Where(a => a.ProfileSource == sourceName).FirstOrDefault();
                 if (sa == null)
@@ -74,30 +74,30 @@ namespace NoCaml.UserProfiles
         private object syncRoot = new object();
         private Dictionary<string, LoadablePropertyDetails> PropertyCache { get; set; }
 
-        private void UpdateCachedDetails()
+        private void UpdateCachedDetails(Type concreteProfileType)
         {
             var pc = new Dictionary<string, LoadablePropertyDetails>();
             foreach (var kv in Mappings)
             {
-                var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, false, false);
+                var lpd = new LoadablePropertyDetails(concreteProfileType, kv.Key, kv.Value, this.SourceName, false, false);
                 if (lpd.IsValid) pc.Add(lpd.PropertyInfo.Name, lpd);
             }
 
             foreach (var kv in NullableMappings)
             {
-                var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, true, false);
+                var lpd = new LoadablePropertyDetails(concreteProfileType, kv.Key, kv.Value, this.SourceName, true, false);
                 if (lpd.IsValid) pc.Add(lpd.PropertyInfo.Name, lpd);
             }
 
             foreach (var kv in DelayedMappings)
             {
-                var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, false, true);
+                var lpd = new LoadablePropertyDetails(concreteProfileType, kv.Key, kv.Value, this.SourceName, false, true);
                 if (lpd.IsValid) pc.Add(lpd.PropertyInfo.Name, lpd);
             }
 
             foreach (var kv in DelayedNullableMappings)
             {
-                var lpd = new LoadablePropertyDetails(kv.Key, kv.Value, this.SourceName, false, true);
+                var lpd = new LoadablePropertyDetails(concreteProfileType, kv.Key, kv.Value, this.SourceName, false, true);
                 if (lpd.IsValid) pc.Add(lpd.PropertyInfo.Name, lpd);
             }
             // done this way to avoid modified collection exceptions - PropertyCache is supposed to be either
@@ -222,7 +222,7 @@ namespace NoCaml.UserProfiles
                 {
                     if (PropertyCache == null)
                     {
-                        UpdateCachedDetails();
+                        UpdateCachedDetails(profile.GetType());
                     }
                 }
             }
