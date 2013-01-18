@@ -121,6 +121,7 @@
     <Compile Include="UserProfiles\AudienceRuleParser\Scanner.cs" />
     <Compile Include="UserProfiles\AudienceSpec.cs" />
     <Compile Include="UserProfiles\AudienceWrapper.cs" />
+    <Compile Include="UserProfiles\IChangeDetector.cs" />
     <Compile Include="UserProfiles\ProfilePropertySourceLogAttribute.cs" />
     <Compile Include="UserProfiles\ProfilePropertyIndexAttribute.cs" />
     <Compile Include="UserProfiles\IProfile.cs" />
@@ -169,7 +170,7 @@
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties BuildVersion_UseGlobalSettings="False" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateFileVersion="True" />
+      <UserProperties BuildVersion_UpdateFileVersion="True" BuildVersion_BuildVersioningStyle="None.None.DeltaBaseYearDayOfYear.TimeStamp" BuildVersion_UpdateAssemblyVersion="False" BuildVersion_UseGlobalSettings="False" />
     </VisualStudio>
   </ProjectExtensions>
   <PropertyGroup>

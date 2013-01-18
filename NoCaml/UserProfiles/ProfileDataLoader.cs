@@ -124,6 +124,7 @@ namespace NoCaml.UserProfiles
             var currentvalue = lpd.PropertyInfo.GetValue(profile, null);
             var newvalue = lpd.ValueFunction(profile, source);
 
+
             // if new source is lower priority but can raise priority on change, 
             // check stored hash, update if different
 
@@ -139,7 +140,9 @@ namespace NoCaml.UserProfiles
             if (!lpd.UseIfNull && (newvalue == null || string.IsNullOrEmpty(newvalue.ToString()))) return;
 
             // do not update if not changed
+
             if (currentvalue == newvalue
+                || (currentvalue != null && currentvalue is IChangeDetector && !((IChangeDetector)currentvalue).IsChange(newvalue))
                 || (currentvalue == null && newvalue is string && string.IsNullOrEmpty((string)newvalue))
                 || (currentvalue != null && newvalue != null && currentvalue.ToString() == newvalue.ToString())
                 )
