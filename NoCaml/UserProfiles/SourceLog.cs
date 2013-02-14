@@ -139,37 +139,47 @@ namespace NoCaml.UserProfiles
 
         public static SourceLog Load(UserProfileValueCollectionWrapper ppvc)
         {
-                                        var sl = (string)ppvc.Value;
-                            var dsl = new SourceLog();
-                            if (!string.IsNullOrEmpty(sl))
+            var sl = (string)ppvc.Value;
+
+            try
+            {
+             
+                var dsl = new SourceLog();
+                if (!string.IsNullOrEmpty(sl))
+                {
+                    var ll = sl.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var l in ll)
+                    {
+                        // editing in the out of box ui can add html tags that should be ignored
+                        if (l.Contains("<")) continue;
+
+
+                        // new format - property|source|date|user
+                        if (l.Contains("|"))
+                        {
+                            var cl = l.Split('|');
+                            if (cl.Length > 4 && cl[4] == "5")
+                                dsl.LoadCurrentFormat(l);
+                            else
                             {
-                                var ll = sl.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-                                foreach (var l in ll)
-                                {
-                                    // editing in the out of box ui can add html tags that should be ignored
-                                    if (l.Contains("<")) continue;
-
-
-                                    // new format - property|source|date|user
-                                    if (l.Contains("|"))
-                                    {
-                                        var cl = l.Split('|');
-                                        if (cl.Length > 4 && cl[4] == "5")
-                                            dsl.LoadCurrentFormat(l);
-                                        else
-                                        {
-                                            dsl.LoadOldFormat(l);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        dsl.LoadReallyOldFormat(l);
-                                    }
-                                }
-
+                                dsl.LoadOldFormat(l);
                             }
-                            return dsl;
+                        }
+                        else
+                        {
+                            dsl.LoadReallyOldFormat(l);
+                        }
+                    }
 
+                }
+                return dsl;
+
+            }
+            catch (Exception)
+            {
+                // reset the log if it failed to load
+                return new SourceLog();
+            }
         }
 
     }
