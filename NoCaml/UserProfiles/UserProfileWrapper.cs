@@ -526,7 +526,7 @@ namespace NoCaml.UserProfiles
                     if (multiple)
                     {
                         p.Separator = (int)LEMultiValueSeparator.Semicolon;
-                        p.ChoiceType = (int)LEChoiceTypes.Open;
+                        //p.ChoiceType = (int)LEChoiceTypes.Open;
                     }
                     if (type == "string" || type == "HTML")
                     {
