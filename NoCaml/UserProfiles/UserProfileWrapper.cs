@@ -505,35 +505,53 @@ namespace NoCaml.UserProfiles
 
 			if (!properties.Cast<object>().Select(o => new UserProfilePropertyWrapper(o)).Any(p => p.Name == name))
 			{
-				var miCreate = properties.GetType().GetMethod("Create", new Type[] { typeof(bool) });
-				var miAdd = properties.GetType().GetMethod("Add");
-				var p = new UserProfilePropertyWrapper(miCreate.Invoke(properties, new object[] { false }));
-				//                var p = UPM.Properties.Create(false);
+                try
+                {
+                    var miCreate = properties.GetType().GetMethod("Create", new Type[] { typeof(bool) });
+                    var miAdd = properties.GetType().GetMethod("Add");
+                    var p = new UserProfilePropertyWrapper(miCreate.Invoke(properties, new object[] { false }));
+                    //                var p = UPM.Properties.Create(false);
 
 
-				p.Name = name;
-				p.DisplayName = displayName;
-				p.Type = type;
-				p.DefaultPrivacy = (int)LEPrivacy.Public;
-				p.PrivacyPolicy = (int)LEPrivacyPolicy.OptOut;
-				p.Description = displayName;
-				p.IsSearchable = searchable;
-				p.IsVisibleOnEditor = true;
-				p.IsAlias = false;
-				p.IsMultivalued = multiple;
-				if (multiple)
-				{
-					p.Separator = (int)LEMultiValueSeparator.Semicolon;
-                    p.ChoiceType = (int)LEChoiceTypes.Open;
-     			}
-				if (type == "string" || type == "HTML")
-				{
-					p.Length = length;
-				}
+                    p.Name = name;
+                    p.DisplayName = displayName;
+                    p.Type = type;
+                    p.DefaultPrivacy = (int)LEPrivacy.Public;
+                    p.PrivacyPolicy = (int)LEPrivacyPolicy.OptOut;
+                    p.Description = displayName;
+                    p.IsSearchable = searchable;
+                    p.IsVisibleOnEditor = true;
+                    p.IsAlias = false;
+                    p.IsMultivalued = multiple;
+                    if (multiple)
+                    {
+                        p.Separator = (int)LEMultiValueSeparator.Semicolon;
+                        p.ChoiceType = (int)LEChoiceTypes.Open;
+                    }
+                    if (type == "string" || type == "HTML")
+                    {
+                        p.Length = length;
+                    }
 
-				p.IsUserEditable = true;
-				//UPM.Properties.Add(p);
-				miAdd.Invoke(properties, new object[] { p.UPP });
+                    p.IsUserEditable = true;
+                    //UPM.Properties.Add(p);
+                    miAdd.Invoke(properties, new object[] { p.UPP });
+                }
+                catch (TargetInvocationException ex)
+                {
+                    if (ex.InnerException != null)
+                    {
+                        throw new Exception("Error creating profile property " + name + " - " + ex.InnerException.Message, ex.InnerException);
+                    }
+                    else
+                    {
+                        throw new Exception("Error creating profile property " + name + " - " + ex.Message, ex);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Error creating profile property " + name + " - " + ex.Message, ex);
+                }
 			}
 		}
 
