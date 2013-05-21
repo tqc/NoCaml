@@ -879,6 +879,21 @@ namespace NoCaml.UserProfiles
                 Profile.Commit();
                 ChangedProperties = new List<string>();
             }
+            catch (TargetInvocationException tex)
+            {
+                if (tex.InnerException != null)
+                {
+                    if (tex.InnerException.InnerException != null)
+                    {
+                        LogSaveError(Site, LanID, tex.InnerException.InnerException.Message + " ", tex.InnerException.InnerException.StackTrace);
+                    }
+                    LogSaveError(Site, LanID, tex.InnerException.Message + " " + LastProperty + "=" + LastValue, tex.InnerException.StackTrace);
+
+                }
+                LogSaveError(Site, LanID, tex.Message + " " + LastProperty + "=" + LastValue, tex.StackTrace);
+
+                return;
+            }
             catch (Exception ex)
             {
                 LogSaveError(Site, LanID, ex.Message + " " + LastProperty + "=" + LastValue, ex.StackTrace);

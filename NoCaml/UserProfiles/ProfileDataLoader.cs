@@ -210,7 +210,7 @@ namespace NoCaml.UserProfiles
 
         }
 
-                public void UpdateProfile(TProfile profile, TSource source)
+        public void UpdateProfile(TProfile profile, TSource source)
         {
             UpdateProfile(profile, source, false);
         }
@@ -229,7 +229,7 @@ namespace NoCaml.UserProfiles
                     }
                 }
             }
-            foreach (var kv in PropertyCache.Where(o=>o.Value.RunInSecondaryUpdate == isSecondaryUpdate))
+            foreach (var kv in PropertyCache.Where(o => o.Value.RunInSecondaryUpdate == isSecondaryUpdate))
             {
                 UpdateProperty(profile, source, kv.Value);
             }
@@ -258,7 +258,7 @@ namespace NoCaml.UserProfiles
     public abstract class ProfileDataLoader<TProfile> : ProfileDataLoader where TProfile : IProfile
     {
 
-        
+
 
         /// <summary>
         /// For sources where validity is dependent on other properties, allow filtering of the profile list 
@@ -327,7 +327,7 @@ namespace NoCaml.UserProfiles
         /// <returns></returns>
         protected virtual bool BulkDataContains(TProfile p)
         {
-            return base.BulkDataContains((IProfile)p); 
+            return base.BulkDataContains((IProfile)p);
         }
         protected sealed override bool BulkDataContains(IProfile p)
         {
@@ -349,7 +349,7 @@ namespace NoCaml.UserProfiles
         {
             return BulkDataUsedToContain((TProfile)p);
         }
-              
+
         protected virtual bool ShouldExport(TProfile p)
         {
             return base.ShouldExport((IProfile)p);
@@ -369,7 +369,7 @@ namespace NoCaml.UserProfiles
         {
             AddExportRow((TProfile)p);
         }
- 
+
         protected virtual bool ShouldUpdateInSecondaryUpdate(TProfile p)
         {
             return base.ShouldUpdateInSecondaryUpdate((IProfile)p);
@@ -378,7 +378,7 @@ namespace NoCaml.UserProfiles
         {
             return ShouldUpdateInSecondaryUpdate((TProfile)p);
         }
- 
+
 
     }
 
@@ -433,8 +433,8 @@ namespace NoCaml.UserProfiles
         public static void LogMessage(string source, string message, string detail)
         {
             if (Log != null)
-            {                         
-                    Log(source, message, detail);               
+            {
+                Log(source, message, detail);
             }
 
         }
@@ -506,7 +506,7 @@ namespace NoCaml.UserProfiles
 
             LogMessage("Profile Import", "Indexing Profiles", "");
 
-         //   indexes["LanID"] = profiles.ToDictionary(p => p.LanID.Trim().ToLower(), p => p);
+            //   indexes["LanID"] = profiles.ToDictionary(p => p.LanID.Trim().ToLower(), p => p);
 
             var profileindex = new Dictionary<string, IProfile>();
 
@@ -527,7 +527,7 @@ namespace NoCaml.UserProfiles
             {
                 try
                 {
-                  //  pdl.Indexes = indexes;
+                    //  pdl.Indexes = indexes;
                     pdl.LoaderInitialized = false;
                     pdl.BulkDataAvailable = pdl.LoadBulkData();
                     pdl.UpdateProfileIndexes(profiles);
@@ -547,75 +547,76 @@ namespace NoCaml.UserProfiles
 
             LogMessage("Profile Import", "Starting profile iteration", "");
 
-            try { 
-            profiles.EachParallel(p =>
+            try
             {
-                bool updated = false;
-                var changedPropertyCount = 0;
-                foreach (var pdl in activeLoaders)
+                foreach (var p in profiles)
                 {
-                     try
-                        {
-                    if (pdl.ShouldUpdateInBatch(p))
+                    bool updated = false;
+                    var changedPropertyCount = 0;
+                    foreach (var pdl in activeLoaders)
                     {
-                        lock (pdl.StatSync) { pdl.ProfilesChecked++; }
-                       
-                            if (pdl.BulkDataAvailable)
+                        try
+                        {
+                            if (pdl.ShouldUpdateInBatch(p))
                             {
-                                pdl.UpdateProfileBatch(p);
+                                lock (pdl.StatSync) { pdl.ProfilesChecked++; }
+
+                                if (pdl.BulkDataAvailable)
+                                {
+                                    pdl.UpdateProfileBatch(p);
+                                }
+                                else
+                                {
+                                    pdl.UpdateProfileRealTime(p);
+                                }
+                                var c2 = p.ChangedProperties.Count;
+                                updated = updated || c2 > changedPropertyCount;
+                                if (c2 > changedPropertyCount) { lock (pdl.StatSync) { pdl.ProfilesUpdated++; } }
+                                changedPropertyCount = c2;
+
                             }
-                            else
-                            {
-                                pdl.UpdateProfileRealTime(p);
-                            }
-                            var c2 = p.ChangedProperties.Count;
-                            updated = updated || c2 > changedPropertyCount;
-                            if (c2 > changedPropertyCount) { lock (pdl.StatSync) { pdl.ProfilesUpdated++; } }
-                            changedPropertyCount = c2;
-                       
-                    }
 
                             pdl.LoadIncrementalDataInternal(p);
 
                         }
 
-                     catch (Exception ex)
-                     {
-                         LogException(pdl.SourceName + ":" + p.LanID, ex);
-                     }
-
-
-                }
-
-
-                foreach (var pdl in activeExporters)
-                {
-                    try
-                    {
-                        if (pdl.ShouldExport(p))
+                        catch (Exception ex)
                         {
-                            pdl.AddExportRow(p);
+                            LogException(pdl.SourceName + ":" + p.LanID, ex);
+                        }
+
+
+                    }
+
+
+                    foreach (var pdl in activeExporters)
+                    {
+                        try
+                        {
+                            if (pdl.ShouldExport(p))
+                            {
+                                pdl.AddExportRow(p);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            LogException(pdl.SourceName + " Exporting:" + p.LanID, ex);
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        LogException(pdl.SourceName + " Exporting:" + p.LanID, ex);
-                    }
-                }
 
-                if (updated)
-                {
-                    try
+                    if (updated)
                     {
-                        p.Save();
+                        try
+                        {
+                            p.Save();
+                        }
+                        catch (Exception ex)
+                        {
+                            LogException("Saving:" + p.LanID, ex);
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        LogException("Saving:" + p.LanID, ex);
-                    }
-                }
 
-            });
+                };
             }
 
             catch (Exception ex)
@@ -631,47 +632,48 @@ namespace NoCaml.UserProfiles
             if (delayedLoaders.Count > 0)
             {
                 LogMessage("Profile Import", "Running secondary updates", "");
-                try { 
-                profiles.EachParallel(p =>
+                try
                 {
-                    bool updated = false;
-                    var changedPropertyCount = 0;
-                    foreach (var pdl in delayedLoaders)
+                    foreach (var p in profiles)
                     {
-
-                        if (pdl.ShouldUpdateInSecondaryUpdate(p))
+                        bool updated = false;
+                        var changedPropertyCount = 0;
+                        foreach (var pdl in delayedLoaders)
                         {
-                            lock (pdl.StatSync) { pdl.ProfilesCheckedInSecondaryUpdate++; }
+
+                            if (pdl.ShouldUpdateInSecondaryUpdate(p))
+                            {
+                                lock (pdl.StatSync) { pdl.ProfilesCheckedInSecondaryUpdate++; }
+                                try
+                                {
+                                    pdl.UpdateProfileSecondary(p);
+
+                                    var c2 = p.ChangedProperties.Count;
+                                    updated = updated || c2 > changedPropertyCount;
+                                    if (c2 > changedPropertyCount) { lock (pdl.StatSync) { pdl.ProfilesUpdatedInSecondaryUpdate++; } }
+                                    changedPropertyCount = c2;
+                                }
+
+                                catch (Exception ex)
+                                {
+                                    LogException(pdl.SourceName + "(Secondary):" + p.LanID, ex);
+                                }
+                            }
+
+                        }
+                        if (updated)
+                        {
                             try
                             {
-                                pdl.UpdateProfileSecondary(p);
-
-                                var c2 = p.ChangedProperties.Count;
-                                updated = updated || c2 > changedPropertyCount;
-                                if (c2 > changedPropertyCount) { lock (pdl.StatSync) { pdl.ProfilesUpdatedInSecondaryUpdate++; } }
-                                changedPropertyCount = c2;
+                                p.Save();
                             }
-
                             catch (Exception ex)
                             {
-                                LogException(pdl.SourceName + "(Secondary):" + p.LanID, ex);
+                                LogException("Saving:" + p.LanID, ex);
                             }
                         }
 
                     }
-                    if (updated)
-                    {
-                        try
-                        {
-                            p.Save();
-                        }
-                        catch (Exception ex)
-                        {
-                            LogException("Saving:" + p.LanID, ex);
-                        }
-                    }
-
-                });
                 }
 
                 catch (Exception ex)
@@ -700,7 +702,7 @@ namespace NoCaml.UserProfiles
 
         protected virtual void UpdateProfileIndexes(List<IProfile> profiles)
         {
-            
+
         }
 
 
@@ -722,7 +724,7 @@ namespace NoCaml.UserProfiles
 
 
         private bool LoaderInitialized = false;
-        protected bool BulkDataAvailable {get;private set;}
+        protected bool BulkDataAvailable { get; private set; }
 
 
 
@@ -848,7 +850,7 @@ namespace NoCaml.UserProfiles
             return true;
         }
 
-       
+
 
         protected virtual void AddExportRow(IProfile p)
         {
@@ -862,7 +864,7 @@ namespace NoCaml.UserProfiles
             return false;
         }
 
- 
+
 
 
 
