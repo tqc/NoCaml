@@ -299,7 +299,7 @@ namespace NoCaml.UserProfiles
                     : op == "LT" ? "<"
                     : op == "LTE" ? "<="
                     : op == "GTE" ? ">="
-                    : op == "Contains" ? "Contains"
+                    : op == "CONTAINS" ? "Contains"
                     : "=";
                 //Debug.WriteLine(name + ", " + op + ", " + val);
                 audienceSpec.Rules.Add(new Rule(name, op, val));
